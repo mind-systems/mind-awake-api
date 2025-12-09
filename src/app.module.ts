@@ -4,6 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { getDatabaseConfig } from '../database.config';
 import { AuthModule } from './users/auth.module';
 import { FirebaseModule } from './firebase/firebase.module';
+import { HealthController } from './health.controller';
 
 @Module({
   imports: [
@@ -20,5 +21,6 @@ import { FirebaseModule } from './firebase/firebase.module';
     }),
     AuthModule,
   ],
+  controllers: [HealthController],
 })
 export class AppModule {}

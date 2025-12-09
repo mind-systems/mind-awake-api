@@ -34,16 +34,6 @@ export class AuthController {
     return authResponse.user;
   }
 
-  @Post('register2')
-  async register2(
-    @Body() registerDto: RegisterDto,
-    @Res({ passthrough: true }) res: Response,
-  ): Promise<UserAuthResponse> {
-    const authResponse = await this.authService.register(registerDto);
-    res.setHeader('Authorization', `Bearer ${authResponse.access_token}`);
-    return authResponse.user;
-  }
-
   /**
    * Вход пользователя
    * POST /auth/login
