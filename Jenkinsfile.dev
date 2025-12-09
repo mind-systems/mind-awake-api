@@ -119,10 +119,13 @@ pipeline {
         always {
             sh """
                 echo "🧹 Cleanup leftover test containers..."
-                docker rm -f test_db_dev_${BUILD_NUMBER} || true
+                docker rm -f mind-awake-api-dev:${BUILD_NUMBER} || true
 
-                echo "🧹 Cleanup dangling dev images..."
-                docker image prune -f --filter label=dev
+                echo "🧹 Cleanup mind-awake-api-dev images except latest..."
+                docker images --format "{{.Repository}}:{{.Tag}}" \
+                  | grep mind-awake-api-dev \
+                  | grep -v latest \
+                  | xargs -r docker rmi -f
             """
         }
     }
