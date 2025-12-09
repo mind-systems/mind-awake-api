@@ -101,7 +101,16 @@ pipeline {
             sh "docker-compose -f ${PROJECT_DIR}/docker-compose.prod.yml logs --tail=50"
         }
         always {
-            sh 'docker rm -f test_db_prod_${BUILD_NUMBER} || true'
+            sh """
+                echo "🧹 Cleanup leftover test containers..."
+                docker rm -f mind-awake-api:${BUILD_NUMBER} || true
+
+                echo "🧹 Cleanup mind-awake-api images except latest..."
+                docker images --format "{{.Repository}}:{{.Tag}}" \
+                  | grep mind-awake-api \
+                  | grep -v latest \
+                  | xargs -r docker rmi -f
+            """
         }
     }
 }
