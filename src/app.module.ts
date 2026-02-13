@@ -5,6 +5,7 @@ import { getDatabaseConfig } from '../database.config';
 import { AuthModule } from './users/auth.module';
 import { FirebaseModule } from './firebase/firebase.module';
 import { HealthController } from './health.controller';
+import { BreathSessionsModule } from './breath-sessions/breath-sessions.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { HealthController } from './health.controller';
       inject: [ConfigService],
     }),
     AuthModule,
+    BreathSessionsModule,
   ],
   controllers: [HealthController],
 })
