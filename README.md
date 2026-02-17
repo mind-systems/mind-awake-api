@@ -31,31 +31,34 @@
 ## Project setup
 
 ```bash
-$ npm install
+$ npm ci
 ```
 
-## Compile and run the project
+## Локальная разработка
 
+**1. Запустить только базу данных:**
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+docker-compose --env-file .env.dev -f docker-compose.dev.yml up -d postgres
 ```
 
-## Run tests
-
+**2. Запустить приложение локально:**
 ```bash
-# unit tests
-$ npm run test
+npm run start
+```
 
-# e2e tests
-$ npm run test:e2e
+**Важно:** В `.env` используйте `localhost` для подключения к базе:
+- `POSTGRES_HOST=localhost`
+- `CONTAINER_DB_PORT=5433` (должен совпадать с `HOST_DB_PORT` из `.env.dev`)
+- Остальные параметры идентичны `.env.dev`
 
-# test coverage
-$ npm run test:cov
+## Деплой (production)
+
+**Запустить полный стек в Docker:**
+```bash
+docker-compose --env-file .env.prod -f docker-compose.prod.yml up -d --build
+```
+
+**Остановить:**
+```bash
+docker-compose -f docker-compose.prod.yml down
 ```

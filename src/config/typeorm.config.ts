@@ -1,13 +1,12 @@
 import { DataSource } from 'typeorm';
 import { config } from 'dotenv';
 
-// Явно указываем .env.dev
-config({ path: '.env.dev' });
+config();
 
 export default new DataSource({
   type: 'postgres',
   host: process.env.POSTGRES_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT || '5432'),
+  port: parseInt(process.env.CONTAINER_DB_PORT || '5432'),
   username: process.env.POSTGRES_USER || 'postgres',
   password: process.env.POSTGRES_PASSWORD || 'postgres',
   database: process.env.POSTGRES_DB || 'auth_db',
