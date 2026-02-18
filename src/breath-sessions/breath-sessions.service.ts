@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { BreathSession } from './entities/breath-session.entity';
@@ -6,6 +6,8 @@ import { CreateBreathSessionDto, UpdateBreathSessionDto } from './dto/breath-ses
 
 @Injectable()
 export class BreathSessionsService {
+  private readonly logger = new Logger(BreathSessionsService.name);
+
   constructor(
     @InjectRepository(BreathSession)
     private readonly breathSessionRepository: Repository<BreathSession>,

@@ -21,44 +21,77 @@
   <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
   [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
 
-## Description
+## Описание
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+Mind Awake API — это бэкенд на базе NestJS для приложения осознанного дыхания. Проект реализует аутентификацию через Firebase, управление сессиями дыхания, продвинутое логирование и автоматическую документацию.
 
-## Cursor extensions
-```ESLint, Prettier, Angular Language Service, NestJS Snippets - NestJS Tools Collection```
+## Возможности
 
-## Project setup
+- **Auth (Sign-in or Sign-up):** Единый вход/регистрация через Firebase ID Token.
+- **Security:** Валидация JWT, строгие Guard'ы (Bearer), нормализация данных.
+- **Breath Sessions:** CRUD для сессий дыхания с поддержкой публичного доступа (shared).
+- **Docs:** OpenAPI (Swagger) документация доступна по адресу `/api/docs`.
+- **Logging:** Winston с ротацией логов (daily rotate) в папку `logs/`.
+- **Infrastructure:** Полная поддержка Docker (multi-stage) и управление через Makefile.
+- **Testing:** Покрытие ключевой бизнес-логики unit-тестами.
+
+## Быстрый старт (Docker + Makefile)
+
+Самый простой способ запустить проект — использовать `Makefile`. Он автоматически подтянет нужные `.env` файлы.
 
 ```bash
-$ npm ci
+# Собрать и запустить dev-окружение
+make up
+
+# Проверить доступность (healthcheck)
+make health
+
+# Посмотреть логи приложения
+make logs
+
+# Остановить контейнеры
+make down
 ```
 
-## Локальная разработка
+## Локальная разработка (без Docker для API)
 
-**1. Запустить только базу данных:**
+**1. Подготовка БД:**
 ```bash
-docker-compose --env-file .env.dev -f docker-compose.dev.yml up -d postgres
+# Запустить только Postgres через Docker
+make up  # или docker compose --env-file .env.dev -f docker-compose.dev.yml up -d postgres
 ```
 
-**2. Запустить приложение локально:**
+**2. Установка зависимостей:**
 ```bash
-npm run start
+npm ci
 ```
 
-**Важно:** В `.env` используйте `localhost` для подключения к базе:
-- `POSTGRES_HOST=localhost`
-- `CONTAINER_DB_PORT=5433` (должен совпадать с `HOST_DB_PORT` из `.env.dev`)
-- Остальные параметры идентичны `.env.dev`
-
-## Деплой (production)
-
-**Запустить полный стек в Docker:**
+**3. Запуск приложения:**
 ```bash
-docker-compose --env-file .env.prod -f docker-compose.prod.yml up -d --build
+npm run start:dev
 ```
 
-**Остановить:**
+**Swagger UI:** [http://localhost:3002/api/docs](http://localhost:3002/api/docs) (в Docker) или [http://localhost:3000/api/docs](http://localhost:3000/api/docs) (локально).
+
+## Тестирование
+
 ```bash
-docker-compose -f docker-compose.prod.yml down
+# Запуск всех тестов
+npm test
+
+# Запуск конкретного теста (например, AuthService)
+npm test src/users/service/auth.service.spec.ts
+```
+
+## Документация и логи
+
+- **Swagger:** Все DTO и контроллеры задокументированы. Поддерживается авторизация через `Authorize` (Bearer token).
+- **Логи:** 
+  - `logs/combined-YYYY-MM-DD.log` — все системные события.
+  - `logs/error-YYYY-MM-DD.log` — только ошибки.
+
+## Деплой (Production)
+
+```bash
+make up-prod
 ```

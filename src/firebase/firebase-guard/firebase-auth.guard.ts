@@ -6,7 +6,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import type * as admin from 'firebase-admin';
-import { RequestWithUser } from '../../users/interfaceis/auth-interfaceis';
+import { RequestWithUser } from '../../users/interfaces/auth.interface';
 
 @Injectable()
 export class FirebaseAuthGuard implements CanActivate {
@@ -32,7 +32,15 @@ export class FirebaseAuthGuard implements CanActivate {
   }
 
   private extractToken(request: RequestWithUser): string | undefined {
-    const reqBody = request.body as { token?: string };
-    return reqBody.token;
+    const authHeader = request.headers?.authorization as string | undefined;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      return authHeader.substring(7);
+    }
+
+    if (request.body && typeof request.body.token === 'string') {
+      return request.body.token;
+    }
+
+    return undefined;
   }
 }

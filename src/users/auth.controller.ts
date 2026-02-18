@@ -7,45 +7,35 @@ import {
   Res,
   UseGuards,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AuthService } from './service/auth.service';
-import { UserAuthResponse } from './interfaceis/auth-interfaceis';
+import { UserResponseDto } from './dto/auth-response.dto';
+import { LoginDto } from './dto/login.dto';
 import { FirebaseAuthGuard } from '../firebase/firebase-guard/firebase-auth.guard';
-import { RegisterDto } from './dto/register-user.dto';
 import type { Response } from 'express';
 import { FirebaseUser } from './decorators/current-user.decorator';
 import type * as admin from 'firebase-admin';
 
+@ApiTags('auth')
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   /**
-   * Регистрация нового пользователя
-   * POST /auth/register
-   */
-  @Post('register')
-  @UseGuards(FirebaseAuthGuard)
-  async register(
-    @Body() registerDto: RegisterDto,
-    @Res({ passthrough: true }) res: Response,
-  ): Promise<UserAuthResponse> {
-    const authResponse = await this.authService.register(registerDto);
-    res.setHeader('Authorization', `Bearer ${authResponse.access_token}`);
-    return authResponse.user;
-  }
-
-  /**
-   * Вход пользователя
+   * Вход пользователя (автоматическая регистрация, если не существует)
    * POST /auth/login
    */
+  @ApiOperation({ summary: 'Login or Register with Firebase Token' })
+  @ApiResponse({ status: 200, type: UserResponseDto })
+  @ApiBearerAuth()
   @Post('login')
   @UseGuards(FirebaseAuthGuard)
   @HttpCode(HttpStatus.OK)
   async login(
-    @FirebaseUser() user: admin.auth.DecodedIdToken,
+    @Body() loginDto: LoginDto,
     @Res({ passthrough: true }) res: Response,
-  ): Promise<UserAuthResponse> {
-    const authResponse = await this.authService.login(user);
+  ): Promise<UserResponseDto> {
+    const authResponse = await this.authService.login(loginDto);
     res.setHeader('Authorization', `Bearer ${authResponse.access_token}`);
     return authResponse.user;
   }
@@ -54,6 +44,9 @@ export class AuthController {
    * Выход пользователя
    * POST /auth/logout
    */
+  @ApiOperation({ summary: 'Revoke Firebase tokens' })
+  @ApiResponse({ status: 200, description: 'Logout successful' })
+  @ApiBearerAuth()
   @Post('logout')
   @UseGuards(FirebaseAuthGuard)
   @HttpCode(HttpStatus.OK)

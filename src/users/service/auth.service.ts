@@ -1,19 +1,24 @@
 import {
-  ConflictException,
   Inject,
   Injectable,
+  InternalServerErrorException,
   UnauthorizedException,
+  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import { User } from '../entities/user.entity';
-import { AuthResponse, JwtPayload } from '../interfaceis/auth-interfaceis';
-import { RegisterDto } from '../dto/register-user.dto';
+import { JwtPayload } from '../interfaces/auth.interface';
+import { AuthResponseDto, UserResponseDto } from '../dto/auth-response.dto';
+import { LoginDto } from '../dto/login.dto';
+import { UserRole } from '../interfaces/user-role.enum';
 import type * as admin from 'firebase-admin';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     @Inject('FIREBASE_ADMIN') private readonly firebaseAdmin: typeof admin,
     @InjectRepository(User)
@@ -21,79 +26,95 @@ export class AuthService {
     private readonly jwtService: JwtService,
   ) {}
 
-  async register(registerDto: RegisterDto): Promise<AuthResponse> {
-    const { email, name, firebase_uid } = registerDto;
+  async login(
+    loginDto: LoginDto,
+  ): Promise<AuthResponseDto> {
+    const email = loginDto.email.toLowerCase();
+    const firebase_uid = loginDto.firebase_uid;
+    const name = loginDto.name;
 
-    const existingUser = await this.userRepository.findOne({
-      where: [{ email }, { firebase_uid }],
-    });
-
-    if (existingUser) {
-      throw new ConflictException('Такой пользователь уже существует');
+    if (!email) {
+      throw new UnauthorizedException('Email is required');
     }
 
-    const user = {
-      email: email,
-      name: name,
-      firebase_uid: firebase_uid,
-    };
-
-    const savedUser = await this.userRepository.save(user);
-
-    return this.generateToken(savedUser);
-  }
-
-  async login(user: admin.auth.DecodedIdToken) {
-    const { email, user_id } = user;
-    const firebase_uid = <string>user_id;
-
-    const existingUser = await this.userRepository.findOne({
-      where: [{ email }, { firebase_uid }],
+    let user = await this.userRepository.findOne({
+      where: { firebase_uid },
     });
 
-    if (!existingUser) {
-      throw new UnauthorizedException('Неверные учетные данные');
+    if (user) {
+      return this.generateToken(user);
+    } else {
+      user = await this.userRepository.findOne({
+        where: { email },
+      });
+
+      if (user) {
+        if (user.firebase_uid && user.firebase_uid !== firebase_uid) {
+          throw new UnauthorizedException(
+            'Этот email уже привязан к другому аккаунту Firebase',
+          );
+        }
+
+        user.firebase_uid = firebase_uid;
+        user.name = name;
+        user = await this.userRepository.save(user);
+      } else {
+        user = new User({
+          email,
+          name,
+          firebase_uid,
+          role: UserRole.USER,
+        });
+
+        try {
+          user = await this.userRepository.save(user);
+        } catch (error: any) {
+          if (error.code === '23505') {
+            user = await this.userRepository.findOne({
+              where: [{ email }, { firebase_uid }],
+            });
+            if (!user) {
+              throw new InternalServerErrorException('Ошибка при создании пользователя');
+            }
+            user.email = email;
+            user.name = name;
+            user.firebase_uid = firebase_uid;
+            user = await this.userRepository.save(user);
+          } else {
+            throw new InternalServerErrorException('Ошибка при сохранении пользователя');
+          }
+        }
+      }
     }
 
-    return this.generateToken(existingUser);
+    return this.generateToken(user);
   }
 
   async logout(uid: string) {
     try {
       await this.firebaseAdmin.auth().revokeRefreshTokens(uid);
     } catch (error: any) {
-      console.error('Firebase token verification failed:', error);
-      throw new Error('Logout failed');
+      this.logger.error(`Logout failed for UID ${uid}: ${error.message}`, error.stack);
+      throw new InternalServerErrorException('Logout failed');
     }
   }
 
-  private generateToken(user: User): AuthResponse {
+  private generateToken(user: User): AuthResponseDto {
     const payload: JwtPayload = {
       sub: user.id,
       email: user.email,
       name: user.name,
     };
 
-    return {
-      access_token: this.jwtService.sign(payload),
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-      },
-    };
+    const accessToken = this.jwtService.sign(payload);
+    const userDto = new UserResponseDto(user);
+
+    return new AuthResponseDto(accessToken, userDto);
   }
 
-  async validateUser(userId: string): Promise<User> {
-    const user = await this.userRepository.findOne({
+  async validateUser(userId: string): Promise<User | null> {
+    return this.userRepository.findOne({
       where: { id: userId },
     });
-
-    if (!user) {
-      throw new UnauthorizedException('Пользователь не найден');
-    }
-
-    return user;
   }
 }

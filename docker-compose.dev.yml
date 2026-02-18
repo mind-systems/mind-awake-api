@@ -23,7 +23,9 @@ services:
         max-file: "3"
 
   nestjs:
-    image: mind-awake-api-dev:latest
+    build:
+      context: .
+      target: dev
     container_name: nestjs_app_dev
     restart: unless-stopped
     env_file:
