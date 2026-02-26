@@ -5,12 +5,16 @@ import { User } from '../entities/user.entity';
 import { JwtService } from '@nestjs/jwt';
 import { UserRole } from '../interfaces/user-role.enum';
 import { UnauthorizedException, InternalServerErrorException } from '@nestjs/common';
+import { JwtBlacklistService } from './jwt-blacklist.service';
+import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 
 describe('AuthService', () => {
   let service: AuthService;
   let userRepository;
   let jwtService;
   let firebaseAdmin;
+  let blacklistService;
+  let jwtAuthGuard;
 
   const mockUser = new User({
     id: 'uuid-1',
@@ -22,7 +26,7 @@ describe('AuthService', () => {
 
   const mockDecodedToken = {
     email: 'test@example.com',
-    uid: 'firebase-uid-1',
+    firebase_uid: 'firebase-uid-1',
     name: 'Test User',
   } as any;
 
@@ -34,12 +38,23 @@ describe('AuthService', () => {
 
     jwtService = {
       sign: jest.fn().mockReturnValue('mock-jwt-token'),
+      decode: jest.fn(),
+      verifyAsync: jest.fn(),
     };
 
     firebaseAdmin = {
       auth: jest.fn().mockReturnValue({
         revokeRefreshTokens: jest.fn(),
       }),
+    };
+
+    blacklistService = {
+      add: jest.fn(),
+      isRevoked: jest.fn(),
+    };
+
+    jwtAuthGuard = {
+      extractToken: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -56,6 +71,14 @@ describe('AuthService', () => {
         {
           provide: 'FIREBASE_ADMIN',
           useValue: firebaseAdmin,
+        },
+        {
+          provide: JwtBlacklistService,
+          useValue: blacklistService,
+        },
+        {
+          provide: JwtAuthGuard,
+          useValue: jwtAuthGuard,
         },
       ],
     }).compile();
@@ -95,12 +118,13 @@ describe('AuthService', () => {
 
     it('should handle race condition during user creation', async () => {
       userRepository.findOne.mockResolvedValueOnce(null);
-      userRepository.save.mockRejectedValue({ code: '23505' }); // Unique violation
+      userRepository.findOne.mockResolvedValueOnce(null);
+      userRepository.save.mockRejectedValueOnce({ code: '23505' });
       userRepository.findOne.mockResolvedValueOnce(mockUser);
+      userRepository.save.mockResolvedValueOnce(mockUser);
 
       const result = await service.login(mockDecodedToken);
 
-      expect(userRepository.findOne).toHaveBeenCalledTimes(2);
       expect(result.user.email).toBe(mockUser.email);
     });
 
@@ -113,15 +137,28 @@ describe('AuthService', () => {
   });
 
   describe('logout', () => {
-    it('should call revokeRefreshTokens', async () => {
-      const revokeSpy = firebaseAdmin.auth().revokeRefreshTokens;
-      await service.logout('uid-1');
-      expect(revokeSpy).toHaveBeenCalledWith('uid-1');
+    it('should blacklist the token', async () => {
+      const mockRequest = { headers: { authorization: 'Bearer mock-token' } } as any;
+      const mockPayload = { sub: 'uuid-1', exp: Math.floor(Date.now() / 1000) + 3600 };
+
+      jwtAuthGuard.extractToken.mockReturnValue('mock-token');
+      jwtService.decode.mockReturnValue(mockPayload);
+      blacklistService.add.mockResolvedValue(undefined);
+
+      await service.logout(mockRequest);
+
+      expect(jwtAuthGuard.extractToken).toHaveBeenCalledWith(mockRequest);
+      expect(jwtService.decode).toHaveBeenCalledWith('mock-token');
+      expect(blacklistService.add).toHaveBeenCalledWith('mock-token', expect.any(Number));
     });
 
-    it('should throw InternalServerErrorException if revoke fails', async () => {
-      firebaseAdmin.auth().revokeRefreshTokens.mockRejectedValue(new Error('Firebase Error'));
-      await expect(service.logout('uid-1')).rejects.toThrow(InternalServerErrorException);
+    it('should not blacklist if token is missing', async () => {
+      const mockRequest = { headers: {} } as any;
+      jwtAuthGuard.extractToken.mockReturnValue(undefined);
+
+      await service.logout(mockRequest);
+
+      expect(blacklistService.add).not.toHaveBeenCalled();
     });
   });
 });

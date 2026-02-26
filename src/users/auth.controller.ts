@@ -6,15 +6,16 @@ import {
   Post,
   Res,
   UseGuards,
+  Request,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AuthService } from './service/auth.service';
 import { UserResponseDto } from './dto/auth-response.dto';
 import { LoginDto } from './dto/login.dto';
 import { FirebaseAuthGuard } from '../firebase/firebase-guard/firebase-auth.guard';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import type { Response } from 'express';
-import { FirebaseUser } from './decorators/current-user.decorator';
-import type * as admin from 'firebase-admin';
+import type { RequestWithUser } from './interfaces/auth.interface';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -41,19 +42,17 @@ export class AuthController {
   }
 
   /**
-   * Выход пользователя
+   * Логаут по JWT
    * POST /auth/logout
    */
-  @ApiOperation({ summary: 'Revoke Firebase tokens' })
+  @ApiOperation({ summary: 'Logout' })
   @ApiResponse({ status: 200, description: 'Logout successful' })
   @ApiBearerAuth()
   @Post('logout')
-  @UseGuards(FirebaseAuthGuard)
+  @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
-  async logout(@FirebaseUser() user: admin.auth.DecodedIdToken) {
-    await this.authService.logout(user.uid);
-    return {
-      message: 'Logout successful.',
-    };
+  async logout(@Request() req: RequestWithUser) {
+    await this.authService.logout(req);
+    return { message: 'Logout successful.' };
   }
 }

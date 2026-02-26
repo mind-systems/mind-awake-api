@@ -25,5 +25,5 @@ export interface UserAuthResponse {
 }
 
 export interface RequestWithUser extends ExpressRequest {
-  user?: admin.auth.DecodedIdToken;
+  user?: admin.auth.DecodedIdToken | JwtPayload;
 }

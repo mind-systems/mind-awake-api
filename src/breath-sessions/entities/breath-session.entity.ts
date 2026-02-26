@@ -18,7 +18,7 @@ export class BreathSession {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column('uuid')
+  @Column('uuid', { name: 'userId' })
   @Index()
   userId: string;
 

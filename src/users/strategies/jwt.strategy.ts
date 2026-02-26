@@ -25,7 +25,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     const user = await this.authService.validateUser(payload.sub);
 
     if (!user) {
-      throw new UnauthorizedException('Токен недействителен');
+      throw new UnauthorizedException('Token is invalid');
     }
 
     return user;
