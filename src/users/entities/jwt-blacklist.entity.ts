@@ -11,8 +11,8 @@ export class JwtBlacklist {
 
   @Index()
   @Column({ type: 'int' })
-  expires_at: number;
+  expiresAt: number;
 
   @CreateDateColumn()
-  created_at: Date;
+  createdAt: Date;
 }

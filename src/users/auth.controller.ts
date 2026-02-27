@@ -37,7 +37,7 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ): Promise<UserResponseDto> {
     const authResponse = await this.authService.login(loginDto);
-    res.setHeader('Authorization', `Bearer ${authResponse.access_token}`);
+    res.setHeader('Authorization', `Bearer ${authResponse.accessToken}`);
     return authResponse.user;
   }
 

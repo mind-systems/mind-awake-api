@@ -1,6 +1,7 @@
 import { IsString, IsBoolean, IsArray, ValidateNested, IsNumber, IsEnum, IsOptional, Min, IsNotEmpty } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { BreathSession } from '../entities/breath-session.entity';
 
 class BreathStepDto {
   @ApiProperty({ enum: ['inhale', 'exhale', 'hold'] })
@@ -83,4 +84,18 @@ export class ListQueryDto {
   @Type(() => Number)
   @IsOptional()
   pageSize?: number = 20;
+}
+
+export class BreathSessionListResponseDto {
+  @ApiProperty({ type: [BreathSession] })
+  data: BreathSession[];
+
+  @ApiProperty({ example: 100 })
+  total: number;
+
+  @ApiProperty({ example: 1 })
+  page: number;
+
+  @ApiProperty({ example: 20 })
+  pageSize: number;
 }

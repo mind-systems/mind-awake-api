@@ -1,4 +1,5 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, Index } from 'typeorm';
+import { ApiProperty } from '@nestjs/swagger';
 
 export interface BreathStep {
   type: 'inhale' | 'exhale' | 'hold';
@@ -15,27 +16,42 @@ export interface BreathExercise {
 @Index(['userId', 'createdAt'])
 @Index(['shared', 'createdAt'])
 export class BreathSession {
+  @ApiProperty({ example: '550e8400-e29b-41d4-a716-446655440000' })
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @ApiProperty({ example: '550e8400-e29b-41d4-a716-446655440000' })
   @Column('uuid', { name: 'userId' })
   @Index()
   userId: string;
 
+  @ApiProperty({ example: 'Morning relaxation' })
   @Column('text')
   description: string;
 
+  @ApiProperty({
+    example: [
+      {
+        steps: [{ type: 'inhale', duration: 4000 }],
+        restDuration: 2000,
+        repeatCount: 3,
+      },
+    ],
+  })
   @Column('jsonb')
   exercises: BreathExercise[];
 
+  @ApiProperty({ example: false })
   @Column('boolean', { default: false })
   @Index()
   shared: boolean;
 
+  @ApiProperty({ example: '2026-02-27T12:48:00.000Z' })
   @CreateDateColumn()
   @Index()
   createdAt: Date;
 
+  @ApiProperty({ example: '2026-02-27T12:48:00.000Z' })
   @UpdateDateColumn()
   updatedAt: Date;
 }

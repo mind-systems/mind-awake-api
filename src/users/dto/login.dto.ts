@@ -20,5 +20,5 @@ export class LoginDto {
   @ApiProperty({ example: 'j0KGIWGWaUUddRHdSH3VbyqgSAp2' })
   @IsString()
   @IsNotEmpty()
-  firebase_uid: string;
+  firebaseUid: string;
 }

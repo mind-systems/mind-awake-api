@@ -20,13 +20,13 @@ describe('AuthService', () => {
     id: 'uuid-1',
     email: 'test@example.com',
     name: 'Test User',
-    firebase_uid: 'firebase-uid-1',
+    firebaseUid: 'firebase-uid-1',
     role: UserRole.USER,
   });
 
   const mockDecodedToken = {
     email: 'test@example.com',
-    firebase_uid: 'firebase-uid-1',
+    firebaseUid: 'firebase-uid-1',
     name: 'Test User',
   } as any;
 
@@ -97,7 +97,7 @@ describe('AuthService', () => {
       const result = await service.login(mockDecodedToken);
 
       expect(userRepository.findOne).toHaveBeenCalled();
-      expect(result.access_token).toBe('mock-jwt-token');
+      expect(result.accessToken).toBe('mock-jwt-token');
       expect(result.user.email).toBe(mockUser.email);
     });
 

@@ -15,7 +15,7 @@ export class JwtBlacklistService {
     if (expiresIn <= 0) return;
 
     const expiresAt = Math.floor(Date.now() / 1000) + expiresIn;
-    const entry = this.repo.create({ token, expires_at: expiresAt });
+    const entry = this.repo.create({ token, expiresAt });
     await this.repo.save(entry);
   }
 
@@ -23,7 +23,7 @@ export class JwtBlacklistService {
     const entry = await this.repo.findOne({ where: { token } });
     if (!entry) return false;
 
-    if (Number(entry.expires_at) < Math.floor(Date.now() / 1000)) {
+    if (Number(entry.expiresAt) < Math.floor(Date.now() / 1000)) {
       await this.repo.delete({ token });
       return false;
     }
@@ -34,7 +34,7 @@ export class JwtBlacklistService {
   @Cron(CronExpression.EVERY_DAY_AT_3AM)
   async cleanupExpired(): Promise<void> {
     await this.repo.delete({
-      expires_at: LessThan(Math.floor(Date.now() / 1000)),
+      expiresAt: LessThan(Math.floor(Date.now() / 1000)),
     });
   }
 }

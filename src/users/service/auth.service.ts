@@ -39,11 +39,11 @@ export class AuthService {
       throw new UnauthorizedException('Email is required');
     }
     const email = loginDto.email.toLowerCase();
-    const firebase_uid = loginDto.firebase_uid;
+    const firebaseUid = loginDto.firebaseUid;
     const name = loginDto.name;
 
     let user = await this.userRepository.findOne({
-      where: { firebase_uid },
+      where: { firebaseUid },
     });
 
     if (user) {
@@ -54,20 +54,20 @@ export class AuthService {
       });
 
       if (user) {
-        if (user.firebase_uid && user.firebase_uid !== firebase_uid) {
+        if (user.firebaseUid && user.firebaseUid !== firebaseUid) {
           throw new UnauthorizedException(
             'This email is already associated with another Firebase account.',
           );
         }
 
-        user.firebase_uid = firebase_uid;
+        user.firebaseUid = firebaseUid;
         user.name = name;
         user = await this.userRepository.save(user);
       } else {
         user = new User({
           email,
           name,
-          firebase_uid,
+          firebaseUid,
           role: UserRole.USER,
         });
 
@@ -76,14 +76,14 @@ export class AuthService {
         } catch (error: any) {
           if (error.code === '23505') {
             user = await this.userRepository.findOne({
-              where: [{ email }, { firebase_uid }],
+              where: [{ email }, { firebaseUid }],
             });
             if (!user) {
               throw new InternalServerErrorException('Error creating user');
             }
             user.email = email;
             user.name = name;
-            user.firebase_uid = firebase_uid;
+            user.firebaseUid = firebaseUid;
             user = await this.userRepository.save(user);
           } else {
             throw new InternalServerErrorException('Error saving user');

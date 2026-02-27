@@ -24,13 +24,13 @@ export class UserResponseDto {
 
 export class AuthResponseDto {
   @ApiProperty({ description: 'JWT Access Token' })
-  access_token: string;
+  accessToken: string;
 
   @ApiProperty({ type: UserResponseDto })
   user: UserResponseDto;
 
   constructor(accessToken: string, user: UserResponseDto) {
-    this.access_token = accessToken;
+    this.accessToken = accessToken;
     this.user = user;
   }
 }

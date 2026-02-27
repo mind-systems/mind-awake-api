@@ -19,16 +19,16 @@ export class User {
   name: string;
 
   @Column({ unique: true })
-  firebase_uid: string;
+  firebaseUid: string;
 
   @Column({ type: 'enum', enum: UserRole, default: UserRole.USER })
   role: UserRole;
 
   @CreateDateColumn()
-  created_at: Date;
+  createdAt: Date;
 
   @UpdateDateColumn()
-  updated_at: Date;
+  updatedAt: Date;
 
   constructor(partial: Partial<User>) {
     Object.assign(this, partial);
