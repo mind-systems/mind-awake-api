@@ -19,6 +19,9 @@ import { JwtBlacklistService } from './service/jwt-blacklist.service';
       imports: [ConfigModule],
       useFactory: (configService: ConfigService): JwtModuleOptions => {
         const secret = configService.get<string>('JWT_SECRET');
+        if (!secret) {
+          throw new Error('JWT_SECRET environment variable is not defined');
+        }
         const expiresIn = configService.get<string>('JWT_EXPIRES_IN');
 
         return {

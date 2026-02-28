@@ -4,7 +4,6 @@ import {
   InternalServerErrorException,
   UnauthorizedException,
   Logger,
-  forwardRef,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -16,7 +15,6 @@ import { LoginDto } from '../dto/login.dto';
 import { UserRole } from '../interfaces/user-role.enum';
 import type * as admin from 'firebase-admin';
 import { JwtBlacklistService } from './jwt-blacklist.service';
-import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 
 @Injectable()
 export class AuthService {
@@ -28,8 +26,6 @@ export class AuthService {
     private readonly userRepository: Repository<User>,
     private readonly jwtService: JwtService,
     private readonly blacklistService: JwtBlacklistService,
-    @Inject(forwardRef(() => JwtAuthGuard))
-    private readonly jwtAuthGuard: JwtAuthGuard,
   ) {}
 
   async login(
@@ -96,10 +92,11 @@ export class AuthService {
   }
 
   async logout(req: RequestWithUser): Promise<void> {
-    const token = this.jwtAuthGuard.extractToken(req);
+    const authHeader = req.headers?.authorization as string | undefined;
+    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : undefined;
     if (!token) return;
 
-    const payload: any = this.jwtService.decode(token);
+    const payload = this.jwtService.decode(token) as (JwtPayload & { exp: number }) | null;
     if (!payload || !payload.exp) return;
 
     const expiresIn = Math.max(payload.exp - Math.floor(Date.now() / 1000), 0);

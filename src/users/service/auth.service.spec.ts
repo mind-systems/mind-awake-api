@@ -6,7 +6,6 @@ import { JwtService } from '@nestjs/jwt';
 import { UserRole } from '../interfaces/user-role.enum';
 import { UnauthorizedException, InternalServerErrorException } from '@nestjs/common';
 import { JwtBlacklistService } from './jwt-blacklist.service';
-import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -14,7 +13,6 @@ describe('AuthService', () => {
   let jwtService;
   let firebaseAdmin;
   let blacklistService;
-  let jwtAuthGuard;
 
   const mockUser = new User({
     id: 'uuid-1',
@@ -53,10 +51,6 @@ describe('AuthService', () => {
       isRevoked: jest.fn(),
     };
 
-    jwtAuthGuard = {
-      extractToken: jest.fn(),
-    };
-
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
@@ -75,10 +69,6 @@ describe('AuthService', () => {
         {
           provide: JwtBlacklistService,
           useValue: blacklistService,
-        },
-        {
-          provide: JwtAuthGuard,
-          useValue: jwtAuthGuard,
         },
       ],
     }).compile();
@@ -141,20 +131,17 @@ describe('AuthService', () => {
       const mockRequest = { headers: { authorization: 'Bearer mock-token' } } as any;
       const mockPayload = { sub: 'uuid-1', exp: Math.floor(Date.now() / 1000) + 3600 };
 
-      jwtAuthGuard.extractToken.mockReturnValue('mock-token');
       jwtService.decode.mockReturnValue(mockPayload);
       blacklistService.add.mockResolvedValue(undefined);
 
       await service.logout(mockRequest);
 
-      expect(jwtAuthGuard.extractToken).toHaveBeenCalledWith(mockRequest);
       expect(jwtService.decode).toHaveBeenCalledWith('mock-token');
       expect(blacklistService.add).toHaveBeenCalledWith('mock-token', expect.any(Number));
     });
 
     it('should not blacklist if token is missing', async () => {
       const mockRequest = { headers: {} } as any;
-      jwtAuthGuard.extractToken.mockReturnValue(undefined);
 
       await service.logout(mockRequest);
 

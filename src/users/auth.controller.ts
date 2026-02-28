@@ -8,7 +8,7 @@ import {
   UseGuards,
   Request,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiResponse, ApiSecurity, ApiTags } from '@nestjs/swagger';
 import { AuthService } from './service/auth.service';
 import { UserResponseDto } from './dto/auth-response.dto';
 import { LoginDto } from './dto/login.dto';
@@ -28,7 +28,7 @@ export class AuthController {
    */
   @ApiOperation({ summary: 'Login or Register with Firebase Token' })
   @ApiResponse({ status: 200, type: UserResponseDto })
-  @ApiBearerAuth()
+  @ApiSecurity('firebase-token')
   @Post('login')
   @UseGuards(FirebaseAuthGuard)
   @HttpCode(HttpStatus.OK)

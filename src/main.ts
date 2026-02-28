@@ -52,15 +52,20 @@ async function bootstrap() {
   // Security
   app.use(helmet()); // защита HTTP заголовками
 
-  // Swagger setup
-  const config = new DocumentBuilder()
-    .setTitle('Mind Awake API')
-    .setDescription('The Mind Awake API documentation')
-    .setVersion('1.0')
-    .addBearerAuth()
-    .build();
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api/docs', app, document);
+  if (!isProd) {
+    const config = new DocumentBuilder()
+      .setTitle('Mind Awake API')
+      .setDescription('The Mind Awake API documentation')
+      .setVersion('1.0')
+      .addBearerAuth()
+      .addApiKey(
+        { type: 'apiKey', in: 'header', name: 'Authorization', description: 'Firebase ID Token' },
+        'firebase-token',
+      )
+      .build();
+    const document = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup('api/docs', app, document);
+  }
 
   app.useGlobalPipes(
     new ValidationPipe({
@@ -79,7 +84,9 @@ async function bootstrap() {
   const port = process.env.PORT || 3000;
   await app.listen(port);
   Logger.log(`🚀 Application is running on: http://localhost:${port}`);
-  Logger.log(`Swagger documentation: http://localhost:${port}/api/docs`);
+  if (!isProd) {
+    Logger.log(`Swagger documentation: http://localhost:${port}/api/docs`);
+  }
 }
 
 void bootstrap();
