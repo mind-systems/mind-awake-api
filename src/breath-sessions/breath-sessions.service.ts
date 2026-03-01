@@ -22,8 +22,18 @@ export class BreathSessionsService {
     return this.breathSessionRepository.save(session);
   }
 
-  async findList(userId: string, page: number, pageSize: number): Promise<{ data: BreathSession[]; total: number; page: number; pageSize: number }> {
+  async findList(userId: string | null, page: number, pageSize: number): Promise<{ data: BreathSession[]; total: number; page: number; pageSize: number }> {
     const skip = (page - 1) * pageSize;
+
+    if (!userId) {
+      const [data, total] = await this.breathSessionRepository.findAndCount({
+        where: { shared: true },
+        order: { createdAt: 'DESC' },
+        skip,
+        take: pageSize,
+      });
+      return { data, total, page, pageSize };
+    }
 
     // Получаем свои сессии
     const [ownSessions, ownTotal] = await this.breathSessionRepository.findAndCount({
@@ -73,18 +83,13 @@ export class BreathSessionsService {
     };
   }
 
-  async findOne(id: string, userId: string): Promise<BreathSession> {
+  async findOne(id: string): Promise<BreathSession> {
     const session = await this.breathSessionRepository.findOne({
       where: { id },
     });
 
     if (!session) {
       throw new NotFoundException('Breath session not found');
-    }
-
-    // Проверяем доступ: владелец или публичная
-    if (session.userId !== userId && !session.shared) {
-      throw new ForbiddenException('Access denied to this breath session');
     }
 
     return session;
