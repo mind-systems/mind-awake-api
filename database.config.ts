@@ -11,7 +11,7 @@ export const getDatabaseConfig = (
   password: configService.get<string>('POSTGRES_PASSWORD', 'postgres'),
   database: configService.get<string>('POSTGRES_DB', 'auth_db'),
   entities: [__dirname + '/**/*.entity{.ts,.js}'],
-  migrations: [__dirname + '/../migrations/*{.ts,.js}'],
+  migrations: [__dirname + '/src/migrations/*{.ts,.js}'],
   migrationsRun: true,
   synchronize: false,
   logging: configService.get<string>('NODE_ENV') === 'development',

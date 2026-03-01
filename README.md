@@ -61,6 +61,11 @@ make down
 make up  # или docker compose --env-file .env.dev -f docker-compose.dev.yml up -d postgres
 ```
 
+- Выполнить миграции
+```bash
+npm run migration:run
+```
+
 **2. Установка зависимостей:**
 ```bash
 npm ci
