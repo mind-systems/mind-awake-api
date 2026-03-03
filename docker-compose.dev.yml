@@ -1,17 +1,18 @@
 version: '3.8'
 
 services:
-  mind_database_dev_host:
+  database_dev_host:
     image: postgres:15-alpine
+    container_name: mind_api_database_dev_host
     restart: unless-stopped
     env_file:
       - .env.dev
     volumes:
-      - mind_database_dev_volume:/var/lib/postgresql/data
+      - database_dev_volume:/var/lib/postgresql/data
     ports:
       - "${HOST_DB_PORT}:${CONTAINER_DB_PORT}"
     networks:
-      - mind_network_dev
+      - network_dev
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-postgres}"]
       interval: 10s
@@ -23,21 +24,22 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  nestjs:
+  mind_api_dev:
+    image: mind_api_dev:latest
+    container_name: mind_api_dev
     build:
       context: .
       target: dev
-    container_name: nestjs_app_dev
     restart: unless-stopped
     env_file:
       - .env.dev
     ports:
       - "${HOST_API_PORT}:${CONTAINER_API_PORT}"
     depends_on:
-      mind_database_dev_host:
+      database_dev_host:
         condition: service_healthy
     networks:
-      - mind_network_dev
+      - network_dev
     healthcheck:
       test: ["CMD", "sh", "-c", "wget --no-verbose --tries=1 --spider http://localhost:${CONTAINER_API_PORT} || exit 1"]
       interval: 10s
@@ -51,8 +53,8 @@ services:
         max-file: "3"
 
 volumes:
-  mind_database_dev_volume:
+  database_dev_volume:
 
 networks:
-  mind_network_dev:
+  network_dev:
     driver: bridge

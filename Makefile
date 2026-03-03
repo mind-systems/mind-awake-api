@@ -29,7 +29,7 @@ restart:
 	docker compose --env-file .env.dev -f $(COMPOSE_DEV) restart
 
 logs:
-	docker compose --env-file .env.dev -f $(COMPOSE_DEV) logs -f nestjs
+	docker compose --env-file .env.dev -f $(COMPOSE_DEV) logs -f mind_api_dev
 
 ps:
 	docker compose --env-file .env.dev -f $(COMPOSE_DEV) ps
