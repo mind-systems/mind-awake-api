@@ -23,7 +23,7 @@
     "migration:revert": "npm run typeorm -- migration:revert -d src/config/typeorm.config.ts",
     "db:drop": "npm run typeorm -- schema:drop -d src/config/typeorm.config.ts",
     "migration:create": "npm run typeorm -- migration:create",
-    "seed": "ts-node -r tsconfig-paths/register src/scripts/seed-breath-sessions.ts"
+    "seed": "ts-node src/scripts/seed-breath-sessions.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
