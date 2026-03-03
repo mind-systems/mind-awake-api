@@ -61,10 +61,25 @@ make down
 make up  # или docker compose --env-file .env.dev -f docker-compose.dev.yml up -d postgres
 ```
 
+- Сбросить всю схему (таблицы, типы, индексы):
+```bash
+npm run db:drop
+```
+
 - Выполнить миграции
 ```bash
 npm run migration:run
 ```
+
+- Загрузить начальные данные (seed):
+```bash
+# Сначала нужно войти через /auth/login — получить userId из БД или из JWT
+userId=<uuid-пользователя> npm run seed
+
+# С другим env-файлом (например, Docker dev):
+userId=<uuid-пользователя> envFile=.env.dev npm run seed
+```
+> Seed загружает breath sessions из `src/scripts/breath-sessions.json`. Пользователь должен уже существовать в БД — сначала выполни вход через API.
 
 **2. Установка зависимостей:**
 ```bash

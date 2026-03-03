@@ -32,15 +32,8 @@ export class FirebaseAuthGuard implements CanActivate {
   }
 
   private extractToken(request: RequestWithUser): string | undefined {
-    const authHeader = request.headers?.authorization as string | undefined;
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      return authHeader.substring(7);
-    }
-
-    if (request.body && typeof request.body.token === 'string') {
-      return request.body.token;
-    }
-
-    return undefined;
+    const body = request.body as Record<string, unknown> | undefined;
+    const token = body?.token;
+    return typeof token === 'string' ? token : undefined;
   }
 }
