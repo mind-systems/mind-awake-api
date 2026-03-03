@@ -1,45 +1,58 @@
+version: '3.8'
+
 services:
-  postgres:
+  mind_database_dev_host:
     image: postgres:15-alpine
-    #container_name: postgres_dev
     restart: unless-stopped
     env_file:
       - .env.dev
     volumes:
-      - postgres_dev_data:/var/lib/postgresql/data
+      - mind_database_dev_volume:/var/lib/postgresql/data
     ports:
-      - "5433:5432"
+      - "${HOST_DB_PORT}:${CONTAINER_DB_PORT}"
     networks:
-      - app_network_dev
+      - mind_network_dev
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-postgres}"]
       interval: 10s
       timeout: 5s
       retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   nestjs:
-    image: mind-awake-api-dev:latest
+    build:
+      context: .
+      target: dev
     container_name: nestjs_app_dev
     restart: unless-stopped
     env_file:
       - .env.dev
     ports:
-      - "127.0.0.1:3001:3001"
+      - "${HOST_API_PORT}:${CONTAINER_API_PORT}"
     depends_on:
-      postgres:
+      mind_database_dev_host:
         condition: service_healthy
     networks:
-      - app_network_dev
+      - mind_network_dev
     healthcheck:
-      test: ["CMD", "sh", "-c", "wget --no-verbose --tries=1 --spider http://localhost:3001 || exit 1"]
+      test: ["CMD", "sh", "-c", "wget --no-verbose --tries=1 --spider http://localhost:${CONTAINER_API_PORT} || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 3
       start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 volumes:
-  postgres_dev_data:
+  mind_database_dev_volume:
 
 networks:
-  app_network_dev:
+  mind_network_dev:
     driver: bridge

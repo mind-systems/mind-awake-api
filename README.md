@@ -1,12 +1,12 @@
-<p align="center">
+<p style="text-align: center;">
   <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
 </p>
 
 [circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
 [circleci-url]: https://circleci.com/gh/nestjs/nest
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
+  <p style="text-align: center;">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
+    <p style="text-align: center;">
 <a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
 <a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
 <a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
@@ -21,38 +21,98 @@
   <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
   [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
 
-## Description
+## Описание
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+Mind Awake API — это бэкенд на базе NestJS для приложения осознанного дыхания. Проект реализует аутентификацию через Firebase, управление сессиями дыхания, продвинутое логирование и автоматическую документацию.
 
-## Project setup
+## Возможности
+
+- **Auth (Sign-in or Sign-up):** Единый вход/регистрация через Firebase ID Token.
+- **Security:** Валидация JWT, строгие Guard'ы (Bearer), нормализация данных.
+- **Breath Sessions:** CRUD для сессий дыхания с поддержкой публичного доступа (shared).
+- **Docs:** OpenAPI (Swagger) документация доступна по адресу `/api/docs`.
+- **Logging:** Winston с ротацией логов (daily rotate) в папку `logs/`.
+- **Infrastructure:** Полная поддержка Docker (multi-stage) и управление через Makefile.
+- **Testing:** Покрытие ключевой бизнес-логики unit-тестами.
+
+## Быстрый старт (Docker + Makefile)
+
+Самый простой способ запустить проект — использовать `Makefile`. Он автоматически подтянет нужные `.env` файлы.
 
 ```bash
-$ npm install
+# Собрать и запустить dev-окружение
+make up
+
+# Проверить доступность (healthcheck)
+make health
+
+# Посмотреть логи приложения
+make logs
+
+# Остановить контейнеры
+make down
 ```
 
-## Compile and run the project
+## Локальная разработка (без Docker для API)
 
+**1. Подготовка БД:**
 ```bash
-# development
-$ npm run start
+# Запустить только Postgres через Docker
+make up  # или docker compose --env-file .env.dev -f docker-compose.dev.yml up -d postgres
+```
+Или запустить базу через сервис и создать юзера бд
 
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+- Сбросить всю схему (таблицы, типы, индексы):
+```bash
+npm run db:drop
 ```
 
-## Run tests
+- Выполнить миграции
+```bash
+npm run migration:run
+```
+
+**2. Установка зависимостей:**
+```bash
+npm ci
+```
+
+**3. Запуск приложения:**
+```bash
+npm run start:dev
+```
+
+- Загрузить начальные данные (seed):
+```bash
+# Сначала нужно войти через /auth/login — получить userId из БД или из JWT
+userId=<uuid-пользователя> npm run seed
+
+# С другим env-файлом (например, Docker dev):
+userId=<uuid-пользователя> envFile=.env.dev npm run seed
+```
+> Seed загружает breath sessions из `src/scripts/breath-sessions.json`. Пользователь должен уже существовать в БД — сначала выполни вход через API.
+
+**Swagger UI:** [http://localhost:3002/api/docs](http://localhost:3002/api/docs) (в Docker) или [http://localhost:3000/api/docs](http://localhost:3000/api/docs) (локально).
+
+## Тестирование
 
 ```bash
-# unit tests
-$ npm run test
+# Запуск всех тестов
+npm test
 
-# e2e tests
-$ npm run test:e2e
+# Запуск конкретного теста (например, AuthService)
+npm test src/users/service/auth.service.spec.ts
+```
 
-# test coverage
-$ npm run test:cov
+## Документация и логи
+
+- **Swagger:** Все DTO и контроллеры задокументированы. Поддерживается авторизация через `Authorize` (Bearer token).
+- **Логи:** 
+  - `logs/combined-YYYY-MM-DD.log` — все системные события.
+  - `logs/error-YYYY-MM-DD.log` — только ошибки.
+
+## Деплой (Production)
+
+```bash
+make up-prod
 ```

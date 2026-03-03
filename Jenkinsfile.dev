@@ -96,7 +96,7 @@ pipeline {
                     echo "🏥 Performing health check..."
                     sleep 10
 
-                    if curl -f http://localhost:3001 > /dev/null 2>&1; then
+                    if curl -f http://localhost:3001/health > /dev/null 2>&1; then
                         echo "✅ Development environment is healthy"
                     else
                         echo "❌ Health check failed! Showing logs:"

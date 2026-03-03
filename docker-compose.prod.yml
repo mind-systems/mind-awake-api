@@ -1,41 +1,52 @@
 version: '3.8'
 
 services:
-  postgres:
+  mind_database_prod_host:
     image: postgres:15-alpine
-    container_name: postgres_prod
     restart: unless-stopped
     env_file:
       - .env.prod
     volumes:
-      - postgres_prod_data:/var/lib/postgresql/data
+      - mind_database_prod_volume:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "${HOST_DB_PORT}:${CONTAINER_DB_PORT}"
     networks:
-      - app_network_prod
+      - mind_network_prod
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
       interval: 10s
       timeout: 5s
       retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   nestjs:
-    image: mind-awake-api-prod:latest
+    build:
+      context: .
+      target: production
     container_name: nestjs_app_prod
     restart: unless-stopped
     env_file:
       - .env.prod
     ports:
-      - "127.0.0.1:3000:3000"
+      - "${HOST_API_PORT}:${CONTAINER_API_PORT}"
     depends_on:
-      postgres:
+      mind_database_prod_host:
         condition: service_healthy
     networks:
-      - app_network_prod
+      - mind_network_prod
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 volumes:
-  postgres_prod_data:
+  mind_database_prod_volume:
 
 networks:
-  app_network_prod:
+  mind_network_prod:
     driver: bridge
