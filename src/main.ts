@@ -81,7 +81,7 @@ async function bootstrap() {
     exposedHeaders: ['Authorization'], // чтобы видеть JWT
   });
 
-  const port = process.env.PORT || 3000;
+  const port = process.env.CONTAINER_API_PORT || 3000;
   await app.listen(port);
   Logger.log(`🚀 Application is running on: http://localhost:${port}`);
   if (!isProd) {
