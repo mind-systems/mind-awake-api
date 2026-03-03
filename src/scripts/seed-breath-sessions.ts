@@ -1,10 +1,10 @@
 /* eslint-disable @typescript-eslint/no-require-imports, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-argument */
 
 // Запуск (БД локально / как сервис):
-// userId=<uuid> npx ts-node src/scripts/seed-breath-sessions.ts
+// userId=<uuid> npx ts-node --project tsconfig.json src/scripts/seed-breath-sessions.ts
 //
 // Запуск (БД в Docker):
-// userId=<uuid> envFile=.env.seed.dev npx ts-node src/scripts/seed-breath-sessions.ts
+// userId=<uuid> envFile=.env.seed.dev npx ts-node --project tsconfig.json src/scripts/seed-breath-sessions.ts
 
 import 'reflect-metadata';
 import { config } from 'dotenv';

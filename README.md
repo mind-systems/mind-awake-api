@@ -84,11 +84,11 @@ npm run start:dev
 
 - Загрузить начальные данные (seed):
 ```bash
-# Сначала нужно войти через /auth/login — получить userId из БД или из JWT
-userId=<uuid-пользователя> npm run seed
+# БД запущена локально (использует .env по умолчанию)
+userId=<uuid-пользователя> npx ts-node --project tsconfig.json src/scripts/seed-breath-sessions.ts
 
-# С другим env-файлом (например, Docker dev):
-userId=<uuid-пользователя> envFile=.env.dev npm run seed
+# БД в Docker (использует .env.seed.dev — host=localhost, port=5433)
+userId=<uuid-пользователя> envFile=.env.seed.dev npx ts-node --project tsconfig.json src/scripts/seed-breath-sessions.ts
 ```
 > Seed загружает breath sessions из `src/scripts/breath-sessions.json`. Пользователь должен уже существовать в БД — сначала выполни вход через API.
 
