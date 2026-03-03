@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  database_prod_host:
+  mind_database_prod_host:
     image: postgres:15-alpine
     container_name: mind_api_database_prod_host
     restart: unless-stopped
@@ -36,7 +36,7 @@ services:
     ports:
       - "${HOST_API_PORT}:${CONTAINER_API_PORT}"
     depends_on:
-      database_prod_host:
+      mind_database_prod_host:
         condition: service_healthy
     networks:
       - network_prod
