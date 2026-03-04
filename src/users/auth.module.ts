@@ -12,10 +12,12 @@ import { AuthService } from './service/auth.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtBlacklistService } from './service/jwt-blacklist.service';
 import { AuthCodeService } from './service/auth-code.service';
+import { MailModule } from '../mail/mail.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([User, JwtBlacklist, AuthCode]),
+    MailModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],

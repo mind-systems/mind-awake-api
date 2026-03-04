@@ -8,6 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, MoreThan } from 'typeorm';
 import * as crypto from 'crypto';
 import { AuthCode } from '../entities/auth-code.entity';
+import { MailService } from '../../mail/mail.service';
 
 @Injectable()
 export class AuthCodeService {
@@ -19,9 +20,10 @@ export class AuthCodeService {
   constructor(
     @InjectRepository(AuthCode)
     private readonly authCodeRepository: Repository<AuthCode>,
+    private readonly mailService: MailService,
   ) {}
 
-  async sendCode(email: string): Promise<string> {
+  async sendCode(email: string): Promise<void> {
     const normalizedEmail = email.toLowerCase();
     this.logger.debug(`sendCode called for email=${normalizedEmail}`);
 
@@ -46,7 +48,8 @@ export class AuthCodeService {
       `Auth code saved for email=${normalizedEmail}, expiresAt=${expiresAt.toISOString()}`,
     );
 
-    return code;
+    await this.mailService.sendAuthCode(normalizedEmail, code);
+    this.logger.debug(`Auth code email sent to=${normalizedEmail}`);
   }
 
   private async checkCooldown(email: string): Promise<void> {
@@ -81,8 +84,8 @@ export class AuthCodeService {
   }
 
   private generateCode(): string {
-    const code = crypto.randomInt(100_000_000, 999_999_999).toString();
-    this.logger.debug('Generated new 9-digit auth code');
+    const code = crypto.randomInt(100_000, 999_999).toString();
+    this.logger.debug('Generated new 6-digit auth code');
     return code;
   }
 
