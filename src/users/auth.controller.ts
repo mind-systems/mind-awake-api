@@ -10,8 +10,10 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiSecurity, ApiTags } from '@nestjs/swagger';
 import { AuthService } from './service/auth.service';
+import { AuthCodeService } from './service/auth-code.service';
 import { UserResponseDto } from './dto/auth-response.dto';
 import { LoginDto } from './dto/login.dto';
+import { SendCodeDto } from './dto/send-code.dto';
 import { FirebaseAuthGuard } from '../firebase/firebase-guard/firebase-auth.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import type { Response } from 'express';
@@ -20,7 +22,10 @@ import type { RequestWithUser } from './interfaces/auth.interface';
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly authCodeService: AuthCodeService,
+  ) {}
 
   /**
    * Вход пользователя (автоматическая регистрация, если не существует)
@@ -39,6 +44,16 @@ export class AuthController {
     const authResponse = await this.authService.login(loginDto);
     res.setHeader('Authorization', `Bearer ${authResponse.accessToken}`);
     return authResponse.user;
+  }
+
+  @ApiOperation({ summary: 'Send authentication code to email' })
+  @ApiResponse({ status: 200, description: 'If this email is registered, a code has been sent.' })
+  @ApiResponse({ status: 429, description: 'Too Many Requests' })
+  @Post('send-code')
+  @HttpCode(HttpStatus.OK)
+  async sendCode(@Body() sendCodeDto: SendCodeDto) {
+    await this.authCodeService.sendCode(sendCodeDto.email);
+    return { message: 'If this email is registered, a code has been sent.' };
   }
 
   /**
