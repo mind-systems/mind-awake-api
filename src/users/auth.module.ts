@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { User } from './entities/user.entity';
 import { JwtBlacklist } from './entities/jwt-blacklist.entity';
+import { AuthCode } from './entities/auth-code.entity';
 import { PassportModule } from '@nestjs/passport';
 import { JwtModule, JwtModuleOptions, JwtSignOptions } from '@nestjs/jwt';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
@@ -13,7 +14,7 @@ import { JwtBlacklistService } from './service/jwt-blacklist.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, JwtBlacklist]),
+    TypeOrmModule.forFeature([User, JwtBlacklist, AuthCode]),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],
