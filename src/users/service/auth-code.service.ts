@@ -6,7 +6,8 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource, MoreThan } from 'typeorm';
+import { Repository, DataSource, LessThan, MoreThan } from 'typeorm';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import * as crypto from 'crypto';
 import { AuthCode } from '../entities/auth-code.entity';
 import { User } from '../entities/user.entity';
@@ -149,6 +150,19 @@ export class AuthCodeService {
     const code = crypto.randomInt(100_000, 999_999).toString();
     this.logger.debug('Generated new 6-digit auth code');
     return code;
+  }
+
+  @Cron(CronExpression.EVERY_HOUR)
+  async cleanupExpiredCodes(): Promise<void> {
+    this.logger.debug('cleanupExpiredCodes — cron triggered');
+
+    const result = await this.authCodeRepository.delete({
+      expiresAt: LessThan(new Date()),
+    });
+
+    this.logger.debug(
+      `cleanupExpiredCodes — deleted ${result.affected ?? 0} expired auth codes`,
+    );
   }
 
   private hashCode(code: string): string {
