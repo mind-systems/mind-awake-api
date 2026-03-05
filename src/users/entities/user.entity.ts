@@ -18,9 +18,6 @@ export class User {
   @Column()
   name: string;
 
-  @Column({ unique: true })
-  firebaseUid: string;
-
   @Column({ type: 'enum', enum: UserRole, default: UserRole.USER })
   role: UserRole;
 

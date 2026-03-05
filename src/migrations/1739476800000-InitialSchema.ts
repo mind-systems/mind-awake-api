@@ -18,18 +18,15 @@ export class InitialSchema1739476800000 implements MigrationInterface {
         "id"          uuid NOT NULL DEFAULT uuid_generate_v4(),
         "email"       character varying NOT NULL,
         "name"        character varying NOT NULL,
-        "firebaseUid" character varying NOT NULL,
         "role"        "public"."users_role_enum" NOT NULL DEFAULT 'user',
         "createdAt"   TIMESTAMP NOT NULL DEFAULT now(),
         "updatedAt"   TIMESTAMP NOT NULL DEFAULT now(),
         CONSTRAINT "PK_users_id"          PRIMARY KEY ("id"),
-        CONSTRAINT "UQ_users_email"       UNIQUE ("email"),
-        CONSTRAINT "UQ_users_firebaseUid" UNIQUE ("firebaseUid")
+        CONSTRAINT "UQ_users_email"       UNIQUE ("email")
       )
     `);
 
     await queryRunner.query(`CREATE INDEX "IDX_users_email"       ON "users" ("email")`);
-    await queryRunner.query(`CREATE INDEX "IDX_users_firebaseUid" ON "users" ("firebaseUid")`);
 
     // Table: jwt_blacklist
     await queryRunner.query(`

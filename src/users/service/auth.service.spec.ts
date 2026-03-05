@@ -18,13 +18,11 @@ describe('AuthService', () => {
     id: 'uuid-1',
     email: 'test@example.com',
     name: 'Test User',
-    firebaseUid: 'firebase-uid-1',
     role: UserRole.USER,
   });
 
-  const mockDecodedToken = {
+  const mockLoginDto = {
     email: 'test@example.com',
-    firebaseUid: 'firebase-uid-1',
     name: 'Test User',
   } as any;
 
@@ -83,8 +81,9 @@ describe('AuthService', () => {
   describe('login', () => {
     it('should return auth response for existing user', async () => {
       userRepository.findOne.mockResolvedValue(mockUser);
+      userRepository.save.mockResolvedValue(mockUser);
 
-      const result = await service.login(mockDecodedToken);
+      const result = await service.login(mockLoginDto);
 
       expect(userRepository.findOne).toHaveBeenCalled();
       expect(result.accessToken).toBe('mock-jwt-token');
@@ -95,7 +94,7 @@ describe('AuthService', () => {
       userRepository.findOne.mockResolvedValue(null);
       userRepository.save.mockResolvedValue(mockUser);
 
-      const result = await service.login(mockDecodedToken);
+      const result = await service.login(mockLoginDto);
 
       expect(userRepository.save).toHaveBeenCalled();
       expect(result.user.email).toBe(mockUser.email);
@@ -108,12 +107,10 @@ describe('AuthService', () => {
 
     it('should handle race condition during user creation', async () => {
       userRepository.findOne.mockResolvedValueOnce(null);
-      userRepository.findOne.mockResolvedValueOnce(null);
       userRepository.save.mockRejectedValueOnce({ code: '23505' });
       userRepository.findOne.mockResolvedValueOnce(mockUser);
-      userRepository.save.mockResolvedValueOnce(mockUser);
 
-      const result = await service.login(mockDecodedToken);
+      const result = await service.login(mockLoginDto);
 
       expect(result.user.email).toBe(mockUser.email);
     });
@@ -122,7 +119,7 @@ describe('AuthService', () => {
       userRepository.findOne.mockResolvedValue(null);
       userRepository.save.mockRejectedValue(new Error('DB Error'));
 
-      await expect(service.login(mockDecodedToken)).rejects.toThrow(InternalServerErrorException);
+      await expect(service.login(mockLoginDto)).rejects.toThrow(InternalServerErrorException);
     });
   });
 

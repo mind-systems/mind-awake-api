@@ -35,55 +35,39 @@ export class AuthService {
       throw new UnauthorizedException('Email is required');
     }
     const email = loginDto.email.toLowerCase();
-    const firebaseUid = loginDto.firebaseUid;
     const name = loginDto.name;
 
+    this.logger.debug(`login called for email=${email}`);
+
     let user = await this.userRepository.findOne({
-      where: { firebaseUid },
+      where: { email },
     });
 
     if (user) {
-      return this.generateToken(user);
+      user.name = name;
+      user = await this.userRepository.save(user);
+      this.logger.debug(`Existing user updated, userId=${user.id}`);
     } else {
-      user = await this.userRepository.findOne({
-        where: { email },
+      user = new User({
+        email,
+        name,
+        role: UserRole.USER,
       });
 
-      if (user) {
-        if (user.firebaseUid && user.firebaseUid !== firebaseUid) {
-          throw new UnauthorizedException(
-            'This email is already associated with another Firebase account.',
-          );
-        }
-
-        user.firebaseUid = firebaseUid;
-        user.name = name;
+      try {
         user = await this.userRepository.save(user);
-      } else {
-        user = new User({
-          email,
-          name,
-          firebaseUid,
-          role: UserRole.USER,
-        });
-
-        try {
-          user = await this.userRepository.save(user);
-        } catch (error: any) {
-          if (error.code === '23505') {
-            user = await this.userRepository.findOne({
-              where: [{ email }, { firebaseUid }],
-            });
-            if (!user) {
-              throw new InternalServerErrorException('Error creating user');
-            }
-            user.email = email;
-            user.name = name;
-            user.firebaseUid = firebaseUid;
-            user = await this.userRepository.save(user);
-          } else {
-            throw new InternalServerErrorException('Error saving user');
+        this.logger.debug(`New user created, userId=${user.id}`);
+      } catch (error: any) {
+        if (error.code === '23505') {
+          user = await this.userRepository.findOne({
+            where: { email },
+          });
+          if (!user) {
+            throw new InternalServerErrorException('Error creating user');
           }
+          this.logger.debug(`Race condition resolved, found existing userId=${user.id}`);
+        } else {
+          throw new InternalServerErrorException('Error saving user');
         }
       }
     }
@@ -105,7 +89,7 @@ export class AuthService {
     this.logger.log(`User ${payload.sub} logged out, JWT blacklisted.`);
   }
 
-  private generateToken(user: User): AuthResponseDto {
+  generateToken(user: User): AuthResponseDto {
     const payload: JwtPayload = {
       sub: user.id,
       email: user.email,

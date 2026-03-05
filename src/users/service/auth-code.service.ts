@@ -3,12 +3,17 @@ import {
   Logger,
   HttpException,
   HttpStatus,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, MoreThan } from 'typeorm';
+import { Repository, DataSource, MoreThan } from 'typeorm';
 import * as crypto from 'crypto';
 import { AuthCode } from '../entities/auth-code.entity';
+import { User } from '../entities/user.entity';
+import { UserRole } from '../interfaces/user-role.enum';
+import { AuthResponseDto } from '../dto/auth-response.dto';
 import { MailService } from '../../mail/mail.service';
+import { AuthService } from './auth.service';
 
 @Injectable()
 export class AuthCodeService {
@@ -20,7 +25,11 @@ export class AuthCodeService {
   constructor(
     @InjectRepository(AuthCode)
     private readonly authCodeRepository: Repository<AuthCode>,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
+    private readonly dataSource: DataSource,
     private readonly mailService: MailService,
+    private readonly authService: AuthService,
   ) {}
 
   async sendCode(email: string): Promise<void> {
@@ -50,6 +59,59 @@ export class AuthCodeService {
 
     await this.mailService.sendAuthCode(normalizedEmail, code);
     this.logger.debug(`Auth code email sent to=${normalizedEmail}`);
+  }
+
+  async verifyCode(code: string): Promise<AuthResponseDto> {
+    this.logger.debug('verifyCode called');
+
+    const codeHash = this.hashCode(code);
+    this.logger.debug(`Code hashed, looking up auth_codes`);
+
+    return this.dataSource.transaction(async (manager) => {
+      const authCode = await manager
+        .getRepository(AuthCode)
+        .createQueryBuilder('ac')
+        .setLock('pessimistic_write')
+        .where('ac.codeHash = :codeHash', { codeHash })
+        .andWhere('ac.used = false')
+        .andWhere('ac.expiresAt > :now', { now: new Date() })
+        .getOne();
+
+      if (!authCode) {
+        this.logger.debug('No valid auth code found — invalid or expired');
+        throw new UnauthorizedException('Invalid or expired code');
+      }
+
+      this.logger.debug(
+        `Valid auth code found, id=${authCode.id}, email=${authCode.email}`,
+      );
+
+      authCode.used = true;
+      await manager.save(authCode);
+      this.logger.debug(`Auth code marked as used, id=${authCode.id}`);
+
+      let user = await this.userRepository.findOne({
+        where: { email: authCode.email },
+      });
+
+      if (!user) {
+        const emailPrefix = authCode.email.split('@')[0];
+        user = new User({
+          email: authCode.email,
+          name: emailPrefix,
+          role: UserRole.USER,
+        });
+        user = await this.userRepository.save(user);
+        this.logger.debug(`New user created, userId=${user.id}, email=${authCode.email}`);
+      } else {
+        this.logger.debug(`Existing user found, userId=${user.id}`);
+      }
+
+      const authResponse = this.authService.generateToken(user);
+      this.logger.debug(`Token generated for userId=${user.id}`);
+
+      return authResponse;
+    });
   }
 
   private async checkCooldown(email: string): Promise<void> {

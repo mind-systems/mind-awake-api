@@ -14,6 +14,8 @@ import { AuthCodeService } from './service/auth-code.service';
 import { UserResponseDto } from './dto/auth-response.dto';
 import { LoginDto } from './dto/login.dto';
 import { SendCodeDto } from './dto/send-code.dto';
+import { VerifyCodeDto } from './dto/verify-code.dto';
+import { AuthResponseDto } from './dto/auth-response.dto';
 import { FirebaseAuthGuard } from '../firebase/firebase-guard/firebase-auth.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import type { Response } from 'express';
@@ -54,6 +56,22 @@ export class AuthController {
   async sendCode(@Body() sendCodeDto: SendCodeDto) {
     await this.authCodeService.sendCode(sendCodeDto.email);
     return { message: 'If this email is registered, a code has been sent.' };
+  }
+
+  @ApiOperation({ summary: 'Verify authentication code and get JWT' })
+  @ApiResponse({ status: 200, type: UserResponseDto })
+  @ApiResponse({ status: 401, description: 'Invalid or expired code' })
+  @Post('verify-code')
+  @HttpCode(HttpStatus.OK)
+  async verifyCode(
+    @Body() verifyCodeDto: VerifyCodeDto,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<UserResponseDto> {
+    const authResponse = await this.authCodeService.verifyCode(
+      verifyCodeDto.code,
+    );
+    res.setHeader('Authorization', `Bearer ${authResponse.accessToken}`);
+    return authResponse.user;
   }
 
   /**
