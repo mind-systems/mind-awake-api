@@ -37,29 +37,62 @@ export class AuthCodeService {
     const normalizedEmail = email.toLowerCase();
     this.logger.debug(`sendCode called for email=${normalizedEmail}`);
 
-    await this.checkCooldown(normalizedEmail);
-
-    await this.deleteOldCodes(normalizedEmail);
-
     const code = this.generateCode();
     const codeHash = this.hashCode(code);
     const expiresAt = new Date(
       Date.now() + AuthCodeService.CODE_EXPIRY_MINUTES * 60 * 1000,
     );
 
-    const authCode = this.authCodeRepository.create({
-      email: normalizedEmail,
-      codeHash,
-      expiresAt,
+    const savedCode = await this.dataSource.transaction(async (manager) => {
+      const authCodeRepo = manager.getRepository(AuthCode);
+
+      const cooldownThreshold = new Date(
+        Date.now() - AuthCodeService.COOLDOWN_SECONDS * 1000,
+      );
+      const recentCode = await authCodeRepo
+        .createQueryBuilder('ac')
+        .setLock('pessimistic_write')
+        .where('ac.email = :email', { email: normalizedEmail })
+        .andWhere('ac.createdAt > :cooldownThreshold', { cooldownThreshold })
+        .orderBy('ac.createdAt', 'DESC')
+        .getOne();
+
+      if (recentCode) {
+        this.logger.debug(
+          `Rate limit hit for email=${normalizedEmail}, last code sent at ${recentCode.createdAt.toISOString()}`,
+        );
+        throw new HttpException(
+          'Too Many Requests',
+          HttpStatus.TOO_MANY_REQUESTS,
+        );
+      }
+
+      await authCodeRepo.delete({ email: normalizedEmail });
+      this.logger.debug(`Deleted old codes for email=${normalizedEmail}`);
+
+      const authCode = authCodeRepo.create({
+        email: normalizedEmail,
+        codeHash,
+        expiresAt,
+      });
+
+      const saved = await authCodeRepo.save(authCode);
+      this.logger.debug(
+        `Auth code saved for email=${normalizedEmail}, expiresAt=${expiresAt.toISOString()}`,
+      );
+      return saved;
     });
 
-    await this.authCodeRepository.save(authCode);
-    this.logger.debug(
-      `Auth code saved for email=${normalizedEmail}, expiresAt=${expiresAt.toISOString()}`,
-    );
-
-    await this.mailService.sendAuthCode(normalizedEmail, code);
-    this.logger.debug(`Auth code email sent to=${normalizedEmail}`);
+    try {
+      await this.mailService.sendAuthCode(normalizedEmail, code);
+      this.logger.debug(`Auth code email sent to=${normalizedEmail}`);
+    } catch (error) {
+      this.logger.error(
+        `Failed to send auth code email to=${normalizedEmail}, cleaning up saved code id=${savedCode.id}`,
+      );
+      await this.authCodeRepository.delete({ id: savedCode.id });
+      throw error;
+    }
   }
 
   async verifyCode(code: string): Promise<AuthResponseDto> {
@@ -91,7 +124,8 @@ export class AuthCodeService {
       await manager.save(authCode);
       this.logger.debug(`Auth code marked as used, id=${authCode.id}`);
 
-      let user = await this.userRepository.findOne({
+      const userRepo = manager.getRepository(User);
+      let user = await userRepo.findOne({
         where: { email: authCode.email },
       });
 
@@ -102,7 +136,7 @@ export class AuthCodeService {
           name: emailPrefix,
           role: UserRole.USER,
         });
-        user = await this.userRepository.save(user);
+        user = await userRepo.save(user);
         this.logger.debug(`New user created, userId=${user.id}, email=${authCode.email}`);
       } else {
         this.logger.debug(`Existing user found, userId=${user.id}`);
@@ -113,37 +147,6 @@ export class AuthCodeService {
 
       return authResponse;
     });
-  }
-
-  private async checkCooldown(email: string): Promise<void> {
-    const cooldownThreshold = new Date(
-      Date.now() - AuthCodeService.COOLDOWN_SECONDS * 1000,
-    );
-
-    const recentCode = await this.authCodeRepository.findOne({
-      where: {
-        email,
-        createdAt: MoreThan(cooldownThreshold),
-      },
-      order: { createdAt: 'DESC' },
-    });
-
-    if (recentCode) {
-      this.logger.debug(
-        `Rate limit hit for email=${email}, last code sent at ${recentCode.createdAt.toISOString()}`,
-      );
-      throw new HttpException(
-        'Too Many Requests',
-        HttpStatus.TOO_MANY_REQUESTS,
-      );
-    }
-  }
-
-  private async deleteOldCodes(email: string): Promise<void> {
-    const result = await this.authCodeRepository.delete({ email });
-    this.logger.debug(
-      `Deleted ${result.affected ?? 0} old codes for email=${email}`,
-    );
   }
 
   private generateCode(): string {

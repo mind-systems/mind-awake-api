@@ -67,6 +67,14 @@ The auth flow: client sends Firebase ID Token → `POST /auth/login` → server 
 
 `synchronize` is always `false`. All schema changes require an explicit migration file under `src/migrations/`. Migrations run automatically on startup (`migrationsRun: true` in `database.config.ts`) but should also be run manually during development with `npm run migration:run`.
 
+**Never hand-craft migration timestamps.** Always generate via CLI:
+
+```bash
+npx typeorm migration:create src/migrations/<ActionName>
+```
+
+Naming convention — action-based: `AddAuthCodesTable`, `AddUserRoleColumn`, `CreateTradesTable`, `AddIndexToOrders`.
+
 There are two TypeORM config files:
 - `database.config.ts` — factory used by `AppModule` at runtime
 - `src/config/typeorm.config.ts` — `DataSource` instance used by the TypeORM CLI for migration commands

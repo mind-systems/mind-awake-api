@@ -1,7 +1,7 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class AddAuthCodesTable1709553600000 implements MigrationInterface {
-  name = 'AddAuthCodesTable1709553600000';
+export class AddAuthCodesTable1772774327881 implements MigrationInterface {
+  name = 'AddAuthCodesTable1772774327881';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`

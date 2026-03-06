@@ -12,6 +12,7 @@ export class LoginDto {
   @IsNotEmpty()
   name: string;
 
+  // TODO(step-8): Remove token + firebaseUid fields once Firebase is fully removed
   @ApiProperty({ example: 'Firebase-ID-Token' })
   @IsString()
   @IsNotEmpty()

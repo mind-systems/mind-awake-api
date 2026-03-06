@@ -1,5 +1,4 @@
 import {
-  Inject,
   Injectable,
   InternalServerErrorException,
   UnauthorizedException,
@@ -13,7 +12,6 @@ import { JwtPayload, RequestWithUser } from '../interfaces/auth.interface';
 import { AuthResponseDto, UserResponseDto } from '../dto/auth-response.dto';
 import { LoginDto } from '../dto/login.dto';
 import { UserRole } from '../interfaces/user-role.enum';
-import type * as admin from 'firebase-admin';
 import { JwtBlacklistService } from './jwt-blacklist.service';
 
 @Injectable()
@@ -21,7 +19,6 @@ export class AuthService {
   private readonly logger = new Logger(AuthService.name);
 
   constructor(
-    @Inject('FIREBASE_ADMIN') private readonly firebaseAdmin: typeof admin,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     private readonly jwtService: JwtService,

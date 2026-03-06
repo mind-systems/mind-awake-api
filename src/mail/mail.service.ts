@@ -30,8 +30,15 @@ export class MailService {
       'templates',
       'auth-code.html',
     );
-    this.templateHtml = fs.readFileSync(templatePath, 'utf-8');
-    this.logger.debug(`Mail template loaded from ${templatePath}`);
+    try {
+      this.templateHtml = fs.readFileSync(templatePath, 'utf-8');
+      this.logger.debug(`Mail template loaded from ${templatePath}`);
+    } catch (error) {
+      this.logger.error(
+        `Failed to load mail template from ${templatePath}: ${error.message}`,
+      );
+      throw error;
+    }
     this.logger.debug(
       `MailService initialized — from=${this.mailFrom}, appBaseUrl=${this.appBaseUrl}`,
     );
@@ -46,9 +53,7 @@ export class MailService {
       .replace('{{manual_code}}', code)
       .replace('{{expires_in}}', expiresIn);
 
-    this.logger.debug(
-      `Sending auth code email to=${email}, magicLink=${magicLink}`,
-    );
+    this.logger.debug(`Sending auth code email to=${email}`);
 
     const { data, error } = await this.resend.emails.send({
       from: this.mailFrom,
