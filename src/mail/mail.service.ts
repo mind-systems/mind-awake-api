@@ -14,7 +14,9 @@ export class MailService {
 
   constructor(private readonly configService: ConfigService) {
     const apiKey = this.configService.get<string>('RESEND_API_KEY');
+    if (!apiKey) throw new Error('RESEND_API_KEY environment variable is not defined');
     this.resend = new Resend(apiKey);
+    this.logger.debug('MailService: RESEND_API_KEY loaded, Resend client initialized');
 
     this.mailFrom = this.configService.get<string>(
       'MAIL_FROM',

@@ -1,6 +1,4 @@
 import type { Request as ExpressRequest } from 'express';
-import type * as admin from 'firebase-admin';
-
 export interface JwtPayload {
   sub: string;
   email: string;
@@ -25,5 +23,5 @@ export interface UserAuthResponse {
 }
 
 export interface RequestWithUser extends ExpressRequest {
-  user?: admin.auth.DecodedIdToken | JwtPayload;
+  user?: JwtPayload;
 }

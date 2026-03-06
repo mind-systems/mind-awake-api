@@ -58,10 +58,6 @@ async function bootstrap() {
       .setDescription('The Mind Awake API documentation')
       .setVersion('1.0')
       .addBearerAuth()
-      .addApiKey(
-        { type: 'apiKey', in: 'header', name: 'Authorization', description: 'Firebase ID Token' },
-        'firebase-token',
-      )
       .build();
     const document = SwaggerModule.createDocument(app, config);
     SwaggerModule.setup('api/docs', app, document);

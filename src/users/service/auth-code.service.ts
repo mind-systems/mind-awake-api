@@ -150,7 +150,7 @@ export class AuthCodeService {
   }
 
   private generateCode(): string {
-    const code = crypto.randomInt(100_000, 999_999).toString();
+    const code = crypto.randomInt(100_000, 1_000_000).toString();
     this.logger.debug('Generated new 6-digit auth code');
     return code;
   }
