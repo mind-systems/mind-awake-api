@@ -95,11 +95,12 @@ export class AuthCodeService {
     }
   }
 
-  async verifyCode(code: string): Promise<AuthResponseDto> {
-    this.logger.debug('verifyCode called');
+  async verifyCode(email: string, code: string): Promise<AuthResponseDto> {
+    const normalizedEmail = email.toLowerCase();
+    this.logger.debug(`verifyCode called for email=${normalizedEmail}`);
 
     const codeHash = this.hashCode(code);
-    this.logger.debug(`Code hashed, looking up auth_codes`);
+    this.logger.debug(`Code hashed, looking up auth_codes for email=${normalizedEmail}`);
 
     return this.dataSource.transaction(async (manager) => {
       const authCode = await manager
@@ -107,6 +108,7 @@ export class AuthCodeService {
         .createQueryBuilder('ac')
         .setLock('pessimistic_write')
         .where('ac.codeHash = :codeHash', { codeHash })
+        .andWhere('ac.email = :email', { email: normalizedEmail })
         .andWhere('ac.used = false')
         .andWhere('ac.expiresAt > :now', { now: new Date() })
         .getOne();

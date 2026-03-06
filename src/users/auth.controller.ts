@@ -46,6 +46,7 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ): Promise<UserResponseDto> {
     const authResponse = await this.authCodeService.verifyCode(
+      verifyCodeDto.email,
       verifyCodeDto.code,
     );
     res.setHeader('Authorization', `Bearer ${authResponse.accessToken}`);
