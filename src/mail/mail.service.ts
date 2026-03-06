@@ -16,7 +16,6 @@ export class MailService {
     const apiKey = this.configService.get<string>('RESEND_API_KEY');
     if (!apiKey) throw new Error('RESEND_API_KEY environment variable is not defined');
     this.resend = new Resend(apiKey);
-    this.logger.debug('MailService: RESEND_API_KEY loaded, Resend client initialized');
 
     this.mailFrom = this.configService.get<string>(
       'MAIL_FROM',
@@ -34,16 +33,12 @@ export class MailService {
     );
     try {
       this.templateHtml = fs.readFileSync(templatePath, 'utf-8');
-      this.logger.debug(`Mail template loaded from ${templatePath}`);
     } catch (error) {
       this.logger.error(
         `Failed to load mail template from ${templatePath}: ${error.message}`,
       );
       throw error;
     }
-    this.logger.debug(
-      `MailService initialized — from=${this.mailFrom}, appBaseUrl=${this.appBaseUrl}`,
-    );
   }
 
   async sendAuthCode(email: string, code: string): Promise<void> {
@@ -54,8 +49,6 @@ export class MailService {
       .replace('{{magic_link}}', magicLink)
       .replace('{{manual_code}}', code)
       .replace('{{expires_in}}', expiresIn);
-
-    this.logger.debug(`Sending auth code email to=${email}`);
 
     const { data, error } = await this.resend.emails.send({
       from: this.mailFrom,
@@ -70,9 +63,5 @@ export class MailService {
       );
       throw new Error(`Failed to send email: ${error.message}`);
     }
-
-    this.logger.debug(
-      `Auth code email sent to=${email}, resendId=${data?.id}`,
-    );
   }
 }

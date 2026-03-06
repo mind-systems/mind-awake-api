@@ -6,7 +6,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource, LessThan, MoreThan } from 'typeorm';
+import { Repository, DataSource, LessThan } from 'typeorm';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import * as crypto from 'crypto';
 import { AuthCode } from '../entities/auth-code.entity';
@@ -26,8 +26,6 @@ export class AuthCodeService {
   constructor(
     @InjectRepository(AuthCode)
     private readonly authCodeRepository: Repository<AuthCode>,
-    @InjectRepository(User)
-    private readonly userRepository: Repository<User>,
     private readonly dataSource: DataSource,
     private readonly mailService: MailService,
     private readonly authService: AuthService,
@@ -35,7 +33,6 @@ export class AuthCodeService {
 
   async sendCode(email: string): Promise<void> {
     const normalizedEmail = email.toLowerCase();
-    this.logger.debug(`sendCode called for email=${normalizedEmail}`);
 
     const code = this.generateCode();
     const codeHash = this.hashCode(code);
@@ -58,7 +55,7 @@ export class AuthCodeService {
         .getOne();
 
       if (recentCode) {
-        this.logger.debug(
+        this.logger.warn(
           `Rate limit hit for email=${normalizedEmail}, last code sent at ${recentCode.createdAt.toISOString()}`,
         );
         throw new HttpException(
@@ -68,7 +65,6 @@ export class AuthCodeService {
       }
 
       await authCodeRepo.delete({ email: normalizedEmail });
-      this.logger.debug(`Deleted old codes for email=${normalizedEmail}`);
 
       const authCode = authCodeRepo.create({
         email: normalizedEmail,
@@ -76,16 +72,12 @@ export class AuthCodeService {
         expiresAt,
       });
 
-      const saved = await authCodeRepo.save(authCode);
-      this.logger.debug(
-        `Auth code saved for email=${normalizedEmail}, expiresAt=${expiresAt.toISOString()}`,
-      );
-      return saved;
+      return authCodeRepo.save(authCode);
     });
 
     try {
       await this.mailService.sendAuthCode(normalizedEmail, code);
-      this.logger.debug(`Auth code email sent to=${normalizedEmail}`);
+      this.logger.log(`Auth code sent to=${normalizedEmail}`);
     } catch (error) {
       this.logger.error(
         `Failed to send auth code email to=${normalizedEmail}, cleaning up saved code id=${savedCode.id}`,
@@ -97,10 +89,7 @@ export class AuthCodeService {
 
   async verifyCode(email: string, code: string): Promise<AuthResponseDto> {
     const normalizedEmail = email.toLowerCase();
-    this.logger.debug(`verifyCode called for email=${normalizedEmail}`);
-
     const codeHash = this.hashCode(code);
-    this.logger.debug(`Code hashed, looking up auth_codes for email=${normalizedEmail}`);
 
     return this.dataSource.transaction(async (manager) => {
       const authCode = await manager
@@ -114,17 +103,12 @@ export class AuthCodeService {
         .getOne();
 
       if (!authCode) {
-        this.logger.debug('No valid auth code found — invalid or expired');
+        this.logger.warn(`Invalid or expired code attempt for email=${normalizedEmail}`);
         throw new UnauthorizedException('Invalid or expired code');
       }
 
-      this.logger.debug(
-        `Valid auth code found, id=${authCode.id}, email=${authCode.email}`,
-      );
-
       authCode.used = true;
       await manager.save(authCode);
-      this.logger.debug(`Auth code marked as used, id=${authCode.id}`);
 
       const userRepo = manager.getRepository(User);
       let user = await userRepo.findOne({
@@ -139,35 +123,24 @@ export class AuthCodeService {
           role: UserRole.USER,
         });
         user = await userRepo.save(user);
-        this.logger.debug(`New user created, userId=${user.id}, email=${authCode.email}`);
-      } else {
-        this.logger.debug(`Existing user found, userId=${user.id}`);
+        this.logger.log(`New user registered, userId=${user.id}, email=${authCode.email}`);
       }
 
-      const authResponse = this.authService.generateToken(user);
-      this.logger.debug(`Token generated for userId=${user.id}`);
-
-      return authResponse;
+      return this.authService.generateToken(user);
     });
   }
 
   private generateCode(): string {
-    const code = crypto.randomInt(100_000, 1_000_000).toString();
-    this.logger.debug('Generated new 6-digit auth code');
-    return code;
+    return crypto.randomInt(100_000, 1_000_000).toString();
   }
 
   @Cron(CronExpression.EVERY_HOUR)
   async cleanupExpiredCodes(): Promise<void> {
-    this.logger.debug('cleanupExpiredCodes — cron triggered');
-
     const result = await this.authCodeRepository.delete({
       expiresAt: LessThan(new Date()),
     });
 
-    this.logger.debug(
-      `cleanupExpiredCodes — deleted ${result.affected ?? 0} expired auth codes`,
-    );
+    this.logger.log(`Cleaned up ${result.affected ?? 0} expired auth codes`);
   }
 
   private hashCode(code: string): string {
