@@ -38,26 +38,24 @@ make build-prod && make up-prod
 
 ## Architecture
 
-**Pattern:** Modular Monolith. Each domain (auth, breath-sessions, firebase) is a self-contained NestJS feature module. Modules communicate only through their exported providers — never by importing internals from another module's files.
+**Pattern:** Modular Monolith. Each domain (auth, breath-sessions, mail) is a self-contained NestJS feature module. Modules communicate only through their exported providers — never by importing internals from another module's files.
 
 ### Module dependency graph
 
 ```
 AppModule
-  ├── FirebaseModule (@Global)      ← no dependencies
-  ├── AuthModule                    ← FirebaseModule (implicit via global)
+  ├── MailModule (@Global)          ← ConfigModule
+  ├── AuthModule                    ← MailModule (implicit via global), ScheduleModule
   └── BreathSessionsModule          ← AuthModule (for JwtAuthGuard + @CurrentUser)
 ```
 
 `ConfigModule` is also global (`isGlobal: true`), available everywhere without explicit import.
 
-### Two-guard auth system
+### Auth system
 
-The login endpoint (`POST /auth/login`) is protected by **`FirebaseAuthGuard`** — it verifies the Firebase ID Token from the request body, then attaches the decoded Firebase user to `req.user`.
+Authentication is passwordless — email + one-time code. See [`docs/email-auth.md`](docs/email-auth.md) for the full flow.
 
-All other protected routes use **`JwtAuthGuard`** (passport-jwt), which also checks the **JWT blacklist** table before granting access. The blacklist is a PostgreSQL table (`jwt_blacklist`) — revoked tokens are inserted on logout and purged nightly via `@Cron`.
-
-The auth flow: client sends Firebase ID Token → `POST /auth/login` → server upserts User, issues JWT → JWT returned in `Authorization` header → client uses `Bearer <jwt>` for all subsequent requests.
+All protected routes use **`JwtAuthGuard`** (passport-jwt), which also checks the **JWT blacklist** table before granting access. The blacklist is a PostgreSQL table (`jwt_blacklist`) — revoked tokens are inserted on logout and purged nightly via `@Cron`.
 
 ### Entities belong to their module
 

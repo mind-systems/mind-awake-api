@@ -3,7 +3,7 @@
 ## Overview
 Mind Awake API is structured as a **Modular Monolith** — a single deployable NestJS application with strong, explicit boundaries between feature modules. Each module owns its controllers, services, entities, DTOs, and guards. Modules communicate only through their public API (exported providers), never by reaching into each other's internals.
 
-This pattern fits the project well: small team, clear domain boundaries (auth, breath sessions, firebase), single PostgreSQL database, and Docker-based single-container deployment. NestJS's module system enforces these boundaries naturally via the `@Module` decorator's `imports`/`exports` declarations.
+This pattern fits the project well: small team, clear domain boundaries (auth, mail, breath sessions), single PostgreSQL database, and Docker-based single-container deployment. NestJS's module system enforces these boundaries naturally via the `@Module` decorator's `imports`/`exports` declarations.
 
 ## Decision Rationale
 - **Project type:** REST API backend for a mobile mindfulness app
@@ -32,7 +32,7 @@ src/
 └── migrations/              # TypeORM migrations (explicit only, no synchronize)
 ```
 
-Global/cross-cutting modules (e.g. `firebase/`) live alongside feature modules but are marked `@Global()` and do not need to be explicitly imported.
+Global/cross-cutting modules (e.g. `mail/`) live alongside feature modules but are marked `@Global()` and do not need to be explicitly imported.
 
 ## Dependency Rules
 
@@ -40,14 +40,14 @@ Modules communicate only through exported providers. Never import internal files
 
 ```
 AppModule
-  ├── FirebaseModule (global)   →  no dependencies
-  ├── AuthModule                →  FirebaseModule (implicit, global)
+  ├── MailModule (global)       →  ConfigModule
+  ├── AuthModule                →  MailModule (implicit, global), ScheduleModule
   └── BreathSessionsModule      →  AuthModule (for JwtAuthGuard + @CurrentUser)
 ```
 
 - ✅ `BreathSessionsModule` imports `AuthModule` to use `JwtAuthGuard` and `@CurrentUser()`
 - ✅ All modules import `ConfigModule` (it's global via `isGlobal: true`)
-- ✅ `FirebaseModule` is `@Global()` — no explicit import needed in feature modules
+- ✅ `MailModule` is `@Global()` — no explicit import needed in feature modules
 - ❌ Never import a service directly from another module's `service/` folder — only use what's exported via `@Module({ exports: [...] })`
 - ❌ Never reach into another module's `entities/` — use the owning module's service or TypeORM `@InjectRepository` within the same module
 - ❌ Never import `AuthModule` internals (e.g., `JwtStrategy`) directly — only consume exported guards/decorators
@@ -95,7 +95,7 @@ export class BreathSessionsModule {}
 
 4. **Explicit migrations only.** Never set `synchronize: true`. All schema changes go through TypeORM migration files in `src/migrations/`. Run with `npm run migration:run`.
 
-5. **Guards are the access control boundary.** `FirebaseAuthGuard` protects the login endpoint (verifies Firebase ID Token). `JwtAuthGuard` protects all authenticated routes. Apply at the controller or route level — never inside services.
+5. **Guards are the access control boundary.** `JwtAuthGuard` protects all authenticated routes. Auth endpoints (`send-code`, `verify-code`) are public — no guard. Apply guards at the controller or route level — never inside services.
 
 6. **DTOs are the API contract.** Every controller method accepts a typed DTO. Use `class-validator` decorators on all DTOs. Use `@ApiProperty` on all DTO fields for Swagger completeness.
 
@@ -193,4 +193,4 @@ npm run migration:revert
 - ❌ **`synchronize: true` in any environment** — always use explicit migrations.
 - ❌ **Skipping guards** — accessing `request.user` without a guard. Always apply `@UseGuards(JwtAuthGuard)` at the controller or route level.
 - ❌ **Circular module imports** — if Module A imports Module B and Module B imports Module A, extract the shared logic to a `SharedModule` or a new standalone module.
-- ❌ **Hardcoded secrets** — never hardcode Firebase credentials, JWT secrets, or DB passwords. Always use `ConfigService` / environment variables.
+- ❌ **Hardcoded secrets** — never hardcode JWT secrets, Resend API keys, or DB passwords. Always use `ConfigService` / environment variables.
