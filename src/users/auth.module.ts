@@ -12,6 +12,7 @@ import { AuthService } from './service/auth.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtBlacklistService } from './service/jwt-blacklist.service';
 import { AuthCodeService } from './service/auth-code.service';
+import { GoogleTokenService } from './service/google-token.service';
 import { MailModule } from '../mail/mail.module';
 
 @Module({
@@ -39,7 +40,7 @@ import { MailModule } from '../mail/mail.module';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, AuthCodeService, JwtStrategy, JwtAuthGuard, JwtBlacklistService],
-  exports: [AuthService, JwtStrategy, PassportModule, JwtAuthGuard, JwtBlacklistService, JwtModule],
+  providers: [AuthService, AuthCodeService, JwtStrategy, JwtAuthGuard, JwtBlacklistService, GoogleTokenService],
+  exports: [AuthService, JwtStrategy, PassportModule, JwtAuthGuard, JwtBlacklistService, JwtModule, GoogleTokenService],
 })
 export class AuthModule {}
