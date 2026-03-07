@@ -23,12 +23,12 @@
 
 ## Описание
 
-Mind Awake API — это бэкенд на базе NestJS для приложения осознанного дыхания. Проект реализует аутентификацию через Firebase, управление сессиями дыхания, продвинутое логирование и автоматическую документацию.
+Mind Awake API — это бэкенд на базе NestJS для приложения осознанного дыхания. Проект реализует беспарольную аутентификацию (email OTP и Google Sign-In), управление сессиями дыхания, продвинутое логирование и автоматическую документацию.
 
 ## Возможности
 
-- **Auth (Sign-in or Sign-up):** Единый вход/регистрация через Firebase ID Token.
-- **Security:** Валидация JWT, строгие Guard'ы (Bearer), нормализация данных.
+- **Auth:** Беспарольный вход через одноразовый email-код или Google Sign-In (server auth code flow).
+- **Security:** JWT с blacklist-ом, строгие Guard'ы (Bearer), нормализация данных.
 - **Breath Sessions:** CRUD для сессий дыхания с поддержкой публичного доступа (shared).
 - **Docs:** OpenAPI (Swagger) документация доступна по адресу `/api/docs`.
 - **Logging:** Winston с ротацией логов (daily rotate) в папку `logs/`.
@@ -103,6 +103,13 @@ npm test
 # Запуск конкретного теста (например, AuthService)
 npm test src/users/service/auth.service.spec.ts
 ```
+
+## Документация по аутентификации
+
+| Раздел | Описание |
+|--------|----------|
+| [Email Auth](docs/email-auth.md) | Беспарольный вход через OTP-код на email |
+| [Google Auth](docs/google-auth.md) | Вход через Google Sign-In (server auth code flow) |
 
 ## Документация и логи
 
