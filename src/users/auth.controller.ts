@@ -14,6 +14,7 @@ import { AuthCodeService } from './service/auth-code.service';
 import { UserResponseDto } from './dto/auth-response.dto';
 import { SendCodeDto } from './dto/send-code.dto';
 import { VerifyCodeDto } from './dto/verify-code.dto';
+import { GoogleAuthDto } from './dto/google-auth.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import type { Response } from 'express';
 import type { RequestWithUser } from './interfaces/auth.interface';
@@ -49,6 +50,20 @@ export class AuthController {
       verifyCodeDto.email,
       verifyCodeDto.code,
     );
+    res.setHeader('Authorization', `Bearer ${authResponse.accessToken}`);
+    return authResponse.user;
+  }
+
+  @ApiOperation({ summary: 'Sign in with Google (server authorization code flow)' })
+  @ApiResponse({ status: 200, type: UserResponseDto })
+  @ApiResponse({ status: 401, description: 'Invalid or expired Google authorization code' })
+  @Post('google')
+  @HttpCode(HttpStatus.OK)
+  async googleAuth(
+    @Body() dto: GoogleAuthDto,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<UserResponseDto> {
+    const authResponse = await this.authService.signInWithGoogle(dto.serverAuthCode);
     res.setHeader('Authorization', `Bearer ${authResponse.accessToken}`);
     return authResponse.user;
   }

@@ -6,7 +6,6 @@ import { GoogleTokenService } from './google-token.service';
 
 const MOCK_CLIENT_ID = 'test-client-id';
 const MOCK_CLIENT_SECRET = 'test-client-secret';
-const MOCK_REDIRECT_URI = 'http://localhost';
 
 const MOCK_PAYLOAD = {
   sub: 'google-user-123',
@@ -21,7 +20,6 @@ function makeConfigService(): ConfigService {
       const map: Record<string, string> = {
         GOOGLE_CLIENT_ID: MOCK_CLIENT_ID,
         GOOGLE_CLIENT_SECRET: MOCK_CLIENT_SECRET,
-        GOOGLE_REDIRECT_URI: MOCK_REDIRECT_URI,
       };
       if (key in map) return map[key];
       throw new Error(`Missing config: ${key}`);

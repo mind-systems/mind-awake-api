@@ -13,10 +13,8 @@ export class GoogleTokenService {
     this.clientId = this.configService.getOrThrow<string>('GOOGLE_CLIENT_ID');
     const clientSecret =
       this.configService.getOrThrow<string>('GOOGLE_CLIENT_SECRET');
-    const redirectUri =
-      this.configService.getOrThrow<string>('GOOGLE_REDIRECT_URI');
 
-    this.client = new OAuth2Client(this.clientId, clientSecret, redirectUri);
+    this.client = new OAuth2Client(this.clientId, clientSecret);
   }
 
   async exchangeCodeForProfile(serverAuthCode: string): Promise<GoogleProfile> {
