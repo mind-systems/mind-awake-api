@@ -18,7 +18,7 @@ Execute tasks from the plan, track progress, and enable session continuation.
 
 ```
 1. Check for uncommitted changes (git status)
-2. Check for plan files (.ai-factory/PLAN.md or branch-named)
+2. Check for plan files in .ai-factory/plans/
 3. Check current branch
 ```
 
@@ -120,17 +120,17 @@ Based on choice:
 **Check for plan files in this order:**
 
 ```
-1. .ai-factory/PLAN.md exists? → Use it (from /aif-plan fast)
-2. No .ai-factory/PLAN.md → Check current git branch:
+1. Check current git branch:
    git branch --show-current
    → Look for .ai-factory/plans/<branch-name>.md (e.g., .ai-factory/plans/feature-user-auth.md)
+2. No branch-named file → List .ai-factory/plans/*.md and pick the most recently modified one.
 3. No plan files at all → Check .ai-factory/FIX_PLAN.md
    → If exists: invoke /aif-fix (handles its own workflow with patches) and STOP
 ```
 
 **Priority:**
-1. `.ai-factory/PLAN.md` - always takes priority (from `/aif-plan fast`)
-2. Branch-named file - if no .ai-factory/PLAN.md (from `/aif-plan full`)
+1. Branch-named file in `.ai-factory/plans/` — canonical location for both fast and full mode
+2. Most recently modified file in `.ai-factory/plans/` — if branch name doesn't match
 3. `.ai-factory/FIX_PLAN.md` - redirect to `/aif-fix` (from `/aif-fix` plan mode)
 
 **Read the plan file** to understand:
@@ -346,15 +346,8 @@ If documentation preference is "yes":
 
 **Handle plan file after completion:**
 
-- **If `.ai-factory/PLAN.md`** (from `/aif-plan fast`):
-  ```
-  Would you like to delete .ai-factory/PLAN.md? (It's no longer needed)
-  - [ ] Yes, delete it
-  - [ ] No, keep it
-  ```
-
-- **If branch-named file** (e.g., `.ai-factory/plans/feature-user-auth.md`):
-  - Keep it - documents what was done
+- **If plan file in `.ai-factory/plans/`**:
+  - Keep it — documents what was done
   - User can delete before merging if desired
 
 **Check if running in a git worktree:**
