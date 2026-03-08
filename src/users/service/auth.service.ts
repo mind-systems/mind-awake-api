@@ -11,6 +11,7 @@ import { AuthResponseDto, UserResponseDto } from '../dto/auth-response.dto';
 import { JwtBlacklistService } from './jwt-blacklist.service';
 import { GoogleTokenService } from './google-token.service';
 import { UserRole } from '../interfaces/user-role.enum';
+import { resolveLocale } from '../../config/locales';
 
 @Injectable()
 export class AuthService {
@@ -52,10 +53,10 @@ export class AuthService {
     return new AuthResponseDto(accessToken, userDto);
   }
 
-  async signInWithGoogle(serverAuthCode: string): Promise<AuthResponseDto> {
+  async signInWithGoogle(serverAuthCode: string, language?: string): Promise<AuthResponseDto> {
     this.logger.log('signInWithGoogle: exchanging server auth code for Google profile');
     const profile = await this.googleTokenService.exchangeCodeForProfile(serverAuthCode);
-    this.logger.log(`signInWithGoogle: looking up or creating user, email=${profile.email}`);
+    this.logger.log(`signInWithGoogle: looking up or creating user`);
 
     const user = await this.dataSource.transaction(async (manager) => {
       const userRepo = manager.getRepository(User);
@@ -71,13 +72,17 @@ export class AuthService {
         return existing;
       }
 
+      const resolvedLanguage = resolveLocale(language);
       const created = userRepo.create({
         email: profile.email,
         name: profile.name,
         role: UserRole.USER,
+        language: resolvedLanguage,
       });
       const saved = await userRepo.save(created);
-      this.logger.log(`signInWithGoogle: new user registered via Google, userId=${saved.id}, email=${saved.email}`);
+      this.logger.log(
+        `signInWithGoogle: new user registered, userId=${saved.id}, language=${resolvedLanguage}`,
+      );
       return saved;
     });
 

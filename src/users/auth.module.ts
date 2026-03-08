@@ -40,7 +40,14 @@ import { MailModule } from '../mail/mail.module';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, AuthCodeService, JwtStrategy, JwtAuthGuard, JwtBlacklistService, GoogleTokenService],
+  providers: [
+    AuthService,
+    AuthCodeService,
+    JwtStrategy,
+    JwtAuthGuard,
+    JwtBlacklistService,
+    GoogleTokenService,
+  ],
   exports: [AuthService, JwtStrategy, PassportModule, JwtAuthGuard, JwtBlacklistService, JwtModule, GoogleTokenService],
 })
 export class AuthModule {}

@@ -18,6 +18,9 @@ export class User {
   @Column()
   name: string;
 
+  @Column({ length: 10, default: 'en' })
+  language: string;
+
   @Column({ type: 'enum', enum: UserRole, default: UserRole.USER })
   role: UserRole;
 

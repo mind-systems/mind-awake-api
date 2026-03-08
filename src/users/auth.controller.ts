@@ -49,6 +49,7 @@ export class AuthController {
     const authResponse = await this.authCodeService.verifyCode(
       verifyCodeDto.email,
       verifyCodeDto.code,
+      verifyCodeDto.language,
     );
     res.setHeader('Authorization', `Bearer ${authResponse.accessToken}`);
     return authResponse.user;
@@ -63,7 +64,7 @@ export class AuthController {
     @Body() dto: GoogleAuthDto,
     @Res({ passthrough: true }) res: Response,
   ): Promise<UserResponseDto> {
-    const authResponse = await this.authService.signInWithGoogle(dto.serverAuthCode);
+    const authResponse = await this.authService.signInWithGoogle(dto.serverAuthCode, dto.language);
     res.setHeader('Authorization', `Bearer ${authResponse.accessToken}`);
     return authResponse.user;
   }

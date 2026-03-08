@@ -1,5 +1,5 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, IsEmail, Matches } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsString, IsNotEmpty, IsEmail, Matches, IsOptional } from 'class-validator';
 
 export class VerifyCodeDto {
   @ApiProperty({ example: 'user@example.com' })
@@ -12,4 +12,9 @@ export class VerifyCodeDto {
   @IsNotEmpty()
   @Matches(/^\d{6}$/, { message: 'code must be exactly 6 digits' })
   code: string;
+
+  @ApiPropertyOptional({ example: 'ru', description: 'Raw device locale (used only on first registration)' })
+  @IsString()
+  @IsOptional()
+  language?: string;
 }

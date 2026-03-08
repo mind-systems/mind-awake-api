@@ -14,11 +14,15 @@ export class UserResponseDto {
   @ApiProperty({ enum: UserRole, example: UserRole.USER })
   role: UserRole;
 
+  @ApiProperty({ example: 'en' })
+  language: string;
+
   constructor(user: any) {
     this.id = user.id;
     this.email = user.email;
     this.name = user.name;
     this.role = user.role;
+    this.language = user.language;
   }
 }
 

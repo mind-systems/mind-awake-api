@@ -4,6 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ScheduleModule } from '@nestjs/schedule';
 import { getDatabaseConfig } from '../database.config';
 import { AuthModule } from './users/auth.module';
+import { UserModule } from './users/user.module';
 import { HealthController } from './health.controller';
 import { BreathSessionsModule } from './breath-sessions/breath-sessions.module';
 @Module({
@@ -20,6 +21,7 @@ import { BreathSessionsModule } from './breath-sessions/breath-sessions.module';
     }),
     ScheduleModule.forRoot(),
     AuthModule,
+    UserModule,
     BreathSessionsModule,
   ],
   controllers: [HealthController],

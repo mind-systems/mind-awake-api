@@ -15,6 +15,7 @@ import { UserRole } from '../interfaces/user-role.enum';
 import { AuthResponseDto } from '../dto/auth-response.dto';
 import { MailService } from '../../mail/mail.service';
 import { AuthService } from './auth.service';
+import { resolveLocale } from '../../config/locales';
 
 @Injectable()
 export class AuthCodeService {
@@ -55,9 +56,7 @@ export class AuthCodeService {
         .getOne();
 
       if (recentCode) {
-        this.logger.warn(
-          `Rate limit hit for email=${normalizedEmail}, last code sent at ${recentCode.createdAt.toISOString()}`,
-        );
+        this.logger.warn(`sendCode: rate limit hit, codeId=${recentCode.id}`);
         throw new HttpException(
           'Too Many Requests',
           HttpStatus.TOO_MANY_REQUESTS,
@@ -77,17 +76,15 @@ export class AuthCodeService {
 
     try {
       await this.mailService.sendAuthCode(normalizedEmail, code);
-      this.logger.log(`Auth code sent to=${normalizedEmail}`);
+      this.logger.log(`sendCode: auth code sent, codeId=${savedCode.id}`);
     } catch (error) {
-      this.logger.error(
-        `Failed to send auth code email to=${normalizedEmail}, cleaning up saved code id=${savedCode.id}`,
-      );
+      this.logger.error(`sendCode: mail delivery failed, cleaning up codeId=${savedCode.id}`);
       await this.authCodeRepository.delete({ id: savedCode.id });
       throw error;
     }
   }
 
-  async verifyCode(email: string, code: string): Promise<AuthResponseDto> {
+  async verifyCode(email: string, code: string, language?: string): Promise<AuthResponseDto> {
     const normalizedEmail = email.toLowerCase();
     const codeHash = this.hashCode(code);
 
@@ -103,7 +100,7 @@ export class AuthCodeService {
         .getOne();
 
       if (!authCode) {
-        this.logger.warn(`Invalid or expired code attempt for email=${normalizedEmail}`);
+        this.logger.warn(`verifyCode: invalid or expired code`);
         throw new UnauthorizedException('Invalid or expired code');
       }
 
@@ -117,13 +114,15 @@ export class AuthCodeService {
 
       if (!user) {
         const emailPrefix = authCode.email.split('@')[0];
+        const resolvedLanguage = resolveLocale(language);
         user = new User({
           email: authCode.email,
           name: emailPrefix,
           role: UserRole.USER,
+          language: resolvedLanguage,
         });
         user = await userRepo.save(user);
-        this.logger.log(`New user registered, userId=${user.id}, email=${authCode.email}`);
+        this.logger.log(`verifyCode: new user registered, userId=${user.id}, language=${resolvedLanguage}`);
       }
 
       return this.authService.generateToken(user);
