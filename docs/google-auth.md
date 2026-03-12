@@ -1,4 +1,4 @@
-[← Email Auth](email-auth.md) · [Back to README](../README.md)
+[← Email Auth](email-auth.md) · [Back to README](../README.md) · [User Profile →](user-profile.md)
 
 # Google Authentication
 
