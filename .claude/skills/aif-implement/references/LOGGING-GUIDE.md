@@ -1,65 +1,62 @@
 # Logging Requirements
 
-**ALWAYS add verbose logging when implementing code.** AI-generated code often has subtle bugs that are hard to debug without proper logging.
+Add logging when implementing code — but keep it lean and never log sensitive data.
 
-## Logging Guidelines
+## Security: Never log sensitive data
 
-1. **Log function entry/exit** with parameters and return values
-2. **Log state changes** - before and after mutations
-3. **Log external calls** - API requests, database queries, file operations
-4. **Log error context** - include relevant variables, not just error message
-5. **Use structured logging** when possible (JSON format)
+PII and secrets must NEVER appear in logs — not even at DEBUG level.
 
-## Example Pattern
-
-```typescript
-function processOrder(order: Order): Result {
-  console.log('[processOrder] START', { orderId: order.id, items: order.items.length });
-
-  try {
-    const validated = validateOrder(order);
-    console.log('[processOrder] Validation passed', { validated });
-
-    const result = submitToPayment(validated);
-    console.log('[processOrder] Payment result', { success: result.success, transactionId: result.id });
-
-    return result;
-  } catch (error) {
-    console.error('[processOrder] ERROR', { orderId: order.id, error: error.message, stack: error.stack });
-    throw error;
-  }
-}
-```
-
-## Log Management Requirements
-
-**Logs must be configurable and manageable:**
-
-1. **Use log levels** - DEBUG, INFO, WARN, ERROR
-2. **Environment-based control** - LOG_LEVEL env variable
-3. **Easy to disable** - single flag or env var to turn off verbose logs
-4. **Consider rotation** - for file-based logs, implement rotation or use existing tools
+**Forbidden in logs:**
+- Email addresses, phone numbers, usernames
+- Passwords, tokens, API keys, OTP codes
+- Payment details (card numbers, CVV)
+- Any personally identifiable information
 
 ```typescript
-// Good: Configurable logging
-const LOG_LEVEL = process.env.LOG_LEVEL || 'debug';
-const logger = createLogger({ level: LOG_LEVEL });
+// WRONG
+this.logger.log(`sendCode: email=${email}`);
+this.logger.log(`verifyCode: code=${code}`);
+this.logger.log(`auth: token=${token}`);
 
-// Good: Can be disabled
-if (process.env.DEBUG) {
-  console.log('[debug]', data);
-}
-
-// Bad: Hardcoded verbose logs that can't be turned off
-console.log(hugeObject); // Will pollute production logs
+// CORRECT — log IDs and outcomes, not content
+this.logger.log(`sendCode: sent codeId=${savedCode.id} locale=${locale}`);
+this.logger.log(`verifyCode: success userId=${user.id}`);
 ```
 
-## Why This Matters
+When logging objects, strip sensitive fields first:
+```typescript
+const safe = { id: user.id, role: user.role, language: user.language };
+this.logger.log(`user updated: ${JSON.stringify(safe)}`);
+```
 
-- AI-generated code may have edge cases not covered
-- Logs help identify WHERE things go wrong
-- Debugging without logs wastes significant time
-- User can remove logs later if needed, but missing logs during development is costly
-- **Production safety** - logs must be reducible to avoid performance issues and storage costs
+## What to log
 
-**DO NOT skip logging to "keep code clean" - verbose logging is REQUIRED during implementation, but MUST be configurable.**
+**Log:**
+- Errors with context (IDs, not values)
+- Key business outcomes (code sent, user created, payment processed)
+- External call failures
+
+**Do NOT log:**
+- Function entry/exit ("START", "entry", "exit") — too noisy
+- Successful trivial operations
+- Internal variable state unless debugging a specific issue
+
+```typescript
+// WRONG — too noisy
+this.logger.log(`sendCode: entry email=${email} rawLocale=${rawLocale}`);
+this.logger.log(`sendCode: resolved locale=${locale} existingUser=${!!existingUser}`);
+
+// CORRECT — one meaningful log on success
+this.logger.log(`sendCode: sent codeId=${savedCode.id} locale=${locale}`);
+```
+
+## Log levels
+
+| Level | When |
+|-------|------|
+| `error` | Unexpected failures, exceptions |
+| `warn` | Expected edge cases (rate limit, invalid input) |
+| `log` (info) | Key business events |
+| `debug` | Verbose details — only at LOG_LEVEL=debug |
+
+Logs must be configurable via `LOG_LEVEL` env var. NestJS Logger respects this automatically.
