@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/commo
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { BreathSession } from './entities/breath-session.entity';
+import { BreathSessionSettingsService } from './breath-session-settings.service';
 import { CreateBreathSessionDto, UpdateBreathSessionDto, ReplaceBreathSessionDto } from './dto/breath-session.dto';
 
 @Injectable()
@@ -10,6 +11,7 @@ export class BreathSessionsService {
   constructor(
     @InjectRepository(BreathSession)
     private readonly breathSessionRepository: Repository<BreathSession>,
+    private readonly settingsService: BreathSessionSettingsService,
   ) {}
 
   async create(userId: string, createDto: CreateBreathSessionDto): Promise<BreathSession> {
@@ -22,7 +24,7 @@ export class BreathSessionsService {
     return this.breathSessionRepository.save(session);
   }
 
-  async findList(userId: string | null, page: number, pageSize: number): Promise<{ data: BreathSession[]; total: number; page: number; pageSize: number }> {
+  async findList(userId: string | null, page: number, pageSize: number) {
     const skip = (page - 1) * pageSize;
 
     if (!userId) {
@@ -35,55 +37,51 @@ export class BreathSessionsService {
       return { data, total, page, pageSize };
     }
 
-    // Получаем свои сессии
-    const [ownSessions, ownTotal] = await this.breathSessionRepository.findAndCount({
-      where: { userId },
-      order: { createdAt: 'DESC' },
-      skip,
-      take: pageSize,
-    });
+    // Single query with 3-group priority:
+    // 1) isMine=true (own sessions, any starred/shared status)
+    // 2) isMine=false, starred=true (others' starred)
+    // 3) isMine=false, starred=false, shared=true (others' shared)
+    const qb = this.breathSessionRepository
+      .createQueryBuilder('session')
+      .leftJoin(
+        'breath_session_settings',
+        'settings',
+        'settings."sessionId" = session.id AND settings."userId" = :userId',
+        { userId },
+      )
+      .where(
+        '(session."userId" = :userId OR (settings.starred = true AND session."userId" != :userId) OR (session.shared = true AND session."userId" != :userId))',
+        { userId },
+      )
+      .addSelect(
+        `CASE
+          WHEN session."userId" = :userId THEN 0
+          WHEN settings.starred = true THEN 1
+          ELSE 2
+        END`,
+        'group_priority',
+      )
+      .orderBy('group_priority', 'ASC')
+      .addOrderBy('session.createdAt', 'DESC')
+      .skip(skip)
+      .take(pageSize);
 
-    // Если свои сессии заполнили всю страницу
-    if (ownSessions.length >= pageSize) {
-      return {
-        data: ownSessions,
-        total: ownTotal,
-        page,
-        pageSize,
-      };
-    }
+    const [sessions, total] = await qb.getManyAndCount();
 
-    // Вычисляем сколько еще нужно шаред сессий
-    const remainingCount = pageSize - ownSessions.length;
-    const sharedSkip = Math.max(0, skip - ownTotal);
+    const settingsMap = await this.settingsService.findByUserAndSessions(
+      userId,
+      sessions.map(s => s.id),
+    );
 
-    // Получаем публичные сессии других пользователей
-    const [sharedSessions] = await this.breathSessionRepository.findAndCount({
-      where: { shared: true },
-      order: { createdAt: 'DESC' },
-      skip: sharedSkip,
-      take: remainingCount,
-    });
+    const data = sessions.map(session => ({
+      ...session,
+      isStarred: settingsMap.get(session.id)?.starred ?? false,
+    }));
 
-    // Фильтруем свои из шаред
-    const otherSharedSessions = sharedSessions.filter(s => s.userId !== userId);
-
-    // Подсчитываем общее количество доступных сессий
-    const sharedTotal = await this.breathSessionRepository.count({
-      where: { shared: true },
-    });
-
-    const totalAvailable = ownTotal + sharedTotal;
-
-    return {
-      data: [...ownSessions, ...otherSharedSessions],
-      total: totalAvailable,
-      page,
-      pageSize,
-    };
+    return { data, total, page, pageSize };
   }
 
-  async findOne(id: string): Promise<BreathSession> {
+  async findOne(id: string, userId?: string | null): Promise<BreathSession & { isStarred?: boolean }> {
     const session = await this.breathSessionRepository.findOne({
       where: { id },
     });
@@ -92,7 +90,13 @@ export class BreathSessionsService {
       throw new NotFoundException('Breath session not found');
     }
 
-    return session;
+    if (!userId) {
+      return session;
+    }
+
+    const settingsMap = await this.settingsService.findByUserAndSessions(userId, [id]);
+    const settings = settingsMap.get(id);
+    return { ...session, isStarred: settings?.starred ?? false };
   }
 
   async update(id: string, userId: string, updateDto: UpdateBreathSessionDto): Promise<BreathSession> {

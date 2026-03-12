@@ -103,9 +103,14 @@ export class ListQueryDto {
   pageSize?: number = 20;
 }
 
+export class BreathSessionWithStarredDto extends BreathSession {
+  @ApiPropertyOptional({ example: false, description: 'Whether the current user has starred this session (present only when authenticated)' })
+  isStarred?: boolean;
+}
+
 export class BreathSessionListResponseDto {
-  @ApiProperty({ type: [BreathSession] })
-  data: BreathSession[];
+  @ApiProperty({ type: [BreathSessionWithStarredDto] })
+  data: BreathSessionWithStarredDto[];
 
   @ApiProperty({ example: 100 })
   total: number;

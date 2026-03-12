@@ -6,6 +6,7 @@ import { AuthCode } from './entities/auth-code.entity';
 import { PassportModule } from '@nestjs/passport';
 import { JwtModule, JwtModuleOptions, JwtSignOptions } from '@nestjs/jwt';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { OptionalJwtAuthGuard } from './guards/optional-jwt-auth.guard';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthController } from './auth.controller';
 import { AuthService } from './service/auth.service';
@@ -45,9 +46,19 @@ import { MailModule } from '../mail/mail.module';
     AuthCodeService,
     JwtStrategy,
     JwtAuthGuard,
+    OptionalJwtAuthGuard,
     JwtBlacklistService,
     GoogleTokenService,
   ],
-  exports: [AuthService, JwtStrategy, PassportModule, JwtAuthGuard, JwtBlacklistService, JwtModule, GoogleTokenService],
+  exports: [
+    AuthService,
+    JwtStrategy,
+    PassportModule,
+    JwtAuthGuard,
+    OptionalJwtAuthGuard,
+    JwtBlacklistService,
+    JwtModule,
+    GoogleTokenService,
+  ],
 })
 export class AuthModule {}
