@@ -70,6 +70,23 @@ export class UpdateBreathSessionDto {
   shared?: boolean;
 }
 
+export class ReplaceBreathSessionDto {
+  @ApiProperty({ example: 'Morning relaxation' })
+  @IsString()
+  @IsNotEmpty()
+  description: string;
+
+  @ApiProperty({ type: [BreathExerciseDto] })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => BreathExerciseDto)
+  exercises: BreathExerciseDto[];
+
+  @ApiProperty({ example: false })
+  @IsBoolean()
+  shared: boolean;
+}
+
 export class ListQueryDto {
   @ApiPropertyOptional({ example: 1, default: 1 })
   @IsNumber()

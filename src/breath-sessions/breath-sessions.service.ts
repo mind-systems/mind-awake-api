@@ -2,7 +2,7 @@ import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/commo
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { BreathSession } from './entities/breath-session.entity';
-import { CreateBreathSessionDto, UpdateBreathSessionDto } from './dto/breath-session.dto';
+import { CreateBreathSessionDto, UpdateBreathSessionDto, ReplaceBreathSessionDto } from './dto/breath-session.dto';
 
 @Injectable()
 export class BreathSessionsService {
@@ -110,6 +110,24 @@ export class BreathSessionsService {
     }
 
     Object.assign(session, updateDto);
+    return this.breathSessionRepository.save(session);
+  }
+
+  async replace(id: string, userId: string, dto: ReplaceBreathSessionDto): Promise<BreathSession> {
+    const session = await this.breathSessionRepository.findOne({ where: { id } });
+
+    if (!session) {
+      throw new NotFoundException('Breath session not found');
+    }
+
+    if (session.userId !== userId) {
+      throw new ForbiddenException('You can only update your own breath sessions');
+    }
+
+    session.description = dto.description;
+    session.exercises = dto.exercises;
+    session.shared = dto.shared;
+
     return this.breathSessionRepository.save(session);
   }
 

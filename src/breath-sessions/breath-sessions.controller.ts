@@ -1,7 +1,7 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Put, Delete, Body, Param, Query, UseGuards, Request } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { BreathSessionsService } from './breath-sessions.service';
-import { CreateBreathSessionDto, UpdateBreathSessionDto, ListQueryDto, BreathSessionListResponseDto } from './dto/breath-session.dto';
+import { CreateBreathSessionDto, UpdateBreathSessionDto, ReplaceBreathSessionDto, ListQueryDto, BreathSessionListResponseDto } from './dto/breath-session.dto';
 import { BreathSession } from './entities/breath-session.entity';
 import { JwtAuthGuard } from 'src/users/guards/jwt-auth.guard';
 
@@ -47,6 +47,16 @@ export class BreathSessionsController {
   async update(@Request() req, @Param('id') id: string, @Body() updateDto: UpdateBreathSessionDto) {
     const userId = req.user.sub;
     return this.breathSessionsService.update(id, userId, updateDto);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Replace a breath session (full update)' })
+  @ApiResponse({ status: 200, description: 'Replaced successfully', type: BreathSession })
+  @ApiResponse({ status: 404, description: 'Breath session not found' })
+  @Put(':id')
+  async replace(@Request() req, @Param('id') id: string, @Body() replaceDto: ReplaceBreathSessionDto) {
+    return this.breathSessionsService.replace(id, req.user.sub, replaceDto);
   }
 
   @ApiBearerAuth()
