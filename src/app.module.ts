@@ -7,6 +7,7 @@ import { AuthModule } from './users/auth.module';
 import { UserModule } from './users/user.module';
 import { HealthController } from './health.controller';
 import { BreathSessionsModule } from './breath-sessions/breath-sessions.module';
+import { DeviceModule } from './device/device.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -23,6 +24,7 @@ import { BreathSessionsModule } from './breath-sessions/breath-sessions.module';
     AuthModule,
     UserModule,
     BreathSessionsModule,
+    DeviceModule,
   ],
   controllers: [HealthController],
 })
