@@ -32,14 +32,19 @@ export class AuthCodeService {
     private readonly authService: AuthService,
   ) {}
 
-  async sendCode(email: string): Promise<void> {
+  async sendCode(email: string, rawLocale?: string): Promise<void> {
     const normalizedEmail = email.toLowerCase();
-
     const code = this.generateCode();
     const codeHash = this.hashCode(code);
     const expiresAt = new Date(
       Date.now() + AuthCodeService.CODE_EXPIRY_MINUTES * 60 * 1000,
     );
+
+    const existingUser = await this.dataSource.getRepository(User).findOne({
+      where: { email: normalizedEmail },
+      select: ['language'],
+    });
+    const locale = resolveLocale(existingUser?.language ?? rawLocale);
 
     const savedCode = await this.dataSource.transaction(async (manager) => {
       const authCodeRepo = manager.getRepository(AuthCode);
@@ -75,8 +80,8 @@ export class AuthCodeService {
     });
 
     try {
-      await this.mailService.sendAuthCode(normalizedEmail, code);
-      this.logger.log(`sendCode: auth code sent, codeId=${savedCode.id}`);
+      await this.mailService.sendAuthCode(normalizedEmail, code, locale);
+      this.logger.log(`sendCode: sent codeId=${savedCode.id} locale=${locale}`);
     } catch (error) {
       this.logger.error(`sendCode: mail delivery failed, cleaning up codeId=${savedCode.id}`);
       await this.authCodeRepository.delete({ id: savedCode.id });

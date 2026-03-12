@@ -33,7 +33,7 @@ export class AuthController {
   @Post('send-code')
   @HttpCode(HttpStatus.OK)
   async sendCode(@Body() sendCodeDto: SendCodeDto) {
-    await this.authCodeService.sendCode(sendCodeDto.email);
+    await this.authCodeService.sendCode(sendCodeDto.email, sendCodeDto.locale);
     return { message: 'If this email is registered, a code has been sent.' };
   }
 

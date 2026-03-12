@@ -37,7 +37,7 @@ describe('AuthCodeService', () => {
     };
 
     userRepo = {
-      findOne: jest.fn(),
+      findOne: jest.fn().mockResolvedValue(null),
       save: jest.fn(),
     };
 
@@ -56,6 +56,10 @@ describe('AuthCodeService', () => {
 
     dataSource = {
       transaction: jest.fn().mockImplementation((cb: (m: any) => Promise<any>) => cb(manager)),
+      getRepository: jest.fn().mockImplementation((entity: any) => {
+        if (entity === User) return userRepo;
+        return authCodeRepo;
+      }),
     };
 
     mailService = {
@@ -99,7 +103,7 @@ describe('AuthCodeService', () => {
       await service.sendCode('Test@Example.com');
 
       expect(authCodeRepo.delete).toHaveBeenCalledWith({ email: 'test@example.com' });
-      expect(mailService.sendAuthCode).toHaveBeenCalledWith('test@example.com', expect.any(String));
+      expect(mailService.sendAuthCode).toHaveBeenCalledWith('test@example.com', expect.any(String), expect.any(String));
     });
 
     it('deletes the saved code and rethrows when mail sending fails', async () => {
@@ -121,7 +125,43 @@ describe('AuthCodeService', () => {
 
       await service.sendCode('UPPER@EXAMPLE.COM');
 
-      expect(mailService.sendAuthCode).toHaveBeenCalledWith('upper@example.com', expect.any(String));
+      expect(mailService.sendAuthCode).toHaveBeenCalledWith('upper@example.com', expect.any(String), expect.any(String));
+    });
+
+    it('uses the existing user language when the user is already registered', async () => {
+      const savedCode = makeAuthCode({ id: 'saved-id' });
+      userRepo.findOne.mockResolvedValue({ language: 'ru' });
+      authCodeRepo.createQueryBuilder.mockReturnValue(makeQb(null));
+      authCodeRepo.create.mockReturnValue(savedCode);
+      authCodeRepo.save.mockResolvedValue(savedCode);
+
+      await service.sendCode('test@example.com', 'en');
+
+      expect(mailService.sendAuthCode).toHaveBeenCalledWith(expect.any(String), expect.any(String), 'ru');
+    });
+
+    it('uses request locale for a new user', async () => {
+      const savedCode = makeAuthCode({ id: 'saved-id' });
+      userRepo.findOne.mockResolvedValue(null);
+      authCodeRepo.createQueryBuilder.mockReturnValue(makeQb(null));
+      authCodeRepo.create.mockReturnValue(savedCode);
+      authCodeRepo.save.mockResolvedValue(savedCode);
+
+      await service.sendCode('test@example.com', 'ru');
+
+      expect(mailService.sendAuthCode).toHaveBeenCalledWith(expect.any(String), expect.any(String), 'ru');
+    });
+
+    it('falls back to en when no locale and user is new', async () => {
+      const savedCode = makeAuthCode({ id: 'saved-id' });
+      userRepo.findOne.mockResolvedValue(null);
+      authCodeRepo.createQueryBuilder.mockReturnValue(makeQb(null));
+      authCodeRepo.create.mockReturnValue(savedCode);
+      authCodeRepo.save.mockResolvedValue(savedCode);
+
+      await service.sendCode('test@example.com');
+
+      expect(mailService.sendAuthCode).toHaveBeenCalledWith(expect.any(String), expect.any(String), 'en');
     });
   });
 
