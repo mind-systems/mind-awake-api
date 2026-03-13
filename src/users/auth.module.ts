@@ -1,24 +1,24 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { User } from './entities/user.entity';
-import { JwtBlacklist } from './entities/jwt-blacklist.entity';
+import { UserSession } from './entities/user-session.entity';
 import { AuthCode } from './entities/auth-code.entity';
 import { PassportModule } from '@nestjs/passport';
-import { JwtModule, JwtModuleOptions, JwtSignOptions } from '@nestjs/jwt';
+import { JwtModule, JwtModuleOptions } from '@nestjs/jwt';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { OptionalJwtAuthGuard } from './guards/optional-jwt-auth.guard';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthController } from './auth.controller';
 import { AuthService } from './service/auth.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
-import { JwtBlacklistService } from './service/jwt-blacklist.service';
+import { SessionService } from './service/session.service';
 import { AuthCodeService } from './service/auth-code.service';
 import { GoogleTokenService } from './service/google-token.service';
 import { MailModule } from '../mail/mail.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, JwtBlacklist, AuthCode]),
+    TypeOrmModule.forFeature([User, UserSession, AuthCode]),
     MailModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
@@ -28,14 +28,8 @@ import { MailModule } from '../mail/mail.module';
         if (!secret) {
           throw new Error('JWT_SECRET environment variable is not defined');
         }
-        const expiresIn = configService.get<string>('JWT_EXPIRES_IN');
 
-        return {
-          secret: secret,
-          signOptions: {
-            expiresIn: (expiresIn ?? '24h') as string | number,
-          } as JwtSignOptions,
-        };
+        return { secret };
       },
       inject: [ConfigService],
     }),
@@ -47,7 +41,7 @@ import { MailModule } from '../mail/mail.module';
     JwtStrategy,
     JwtAuthGuard,
     OptionalJwtAuthGuard,
-    JwtBlacklistService,
+    SessionService,
     GoogleTokenService,
   ],
   exports: [
@@ -56,7 +50,7 @@ import { MailModule } from '../mail/mail.module';
     PassportModule,
     JwtAuthGuard,
     OptionalJwtAuthGuard,
-    JwtBlacklistService,
+    SessionService,
     JwtModule,
     GoogleTokenService,
   ],

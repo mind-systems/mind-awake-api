@@ -8,7 +8,7 @@ import { JwtService } from '@nestjs/jwt';
 import { User } from '../entities/user.entity';
 import { JwtPayload, RequestWithUser } from '../interfaces/auth.interface';
 import { AuthResponseDto, UserResponseDto } from '../dto/auth-response.dto';
-import { JwtBlacklistService } from './jwt-blacklist.service';
+import { SessionService } from './session.service';
 import { GoogleTokenService } from './google-token.service';
 import { UserRole } from '../interfaces/user-role.enum';
 import { resolveLocale } from '../../config/locales';
@@ -21,7 +21,7 @@ export class AuthService {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     private readonly jwtService: JwtService,
-    private readonly blacklistService: JwtBlacklistService,
+    private readonly sessionService: SessionService,
     private readonly googleTokenService: GoogleTokenService,
     private readonly dataSource: DataSource,
   ) {}
@@ -31,16 +31,11 @@ export class AuthService {
     const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : undefined;
     if (!token) return;
 
-    const payload = this.jwtService.decode(token) as (JwtPayload & { exp: number }) | null;
-    if (!payload || !payload.exp) return;
-
-    const expiresIn = Math.max(payload.exp - Math.floor(Date.now() / 1000), 0);
-
-    await this.blacklistService.add(token, expiresIn);
-    this.logger.log(`User ${payload.sub} logged out, JWT blacklisted.`);
+    await this.sessionService.revoke(token);
+    this.logger.log(`User logged out, session revoked.`);
   }
 
-  generateToken(user: User): AuthResponseDto {
+  async generateToken(user: User): Promise<AuthResponseDto> {
     const payload: JwtPayload = {
       sub: user.id,
       email: user.email,
@@ -48,6 +43,7 @@ export class AuthService {
     };
 
     const accessToken = this.jwtService.sign(payload);
+    await this.sessionService.create(accessToken, user.id);
     const userDto = new UserResponseDto(user);
 
     return new AuthResponseDto(accessToken, userDto);
@@ -86,7 +82,7 @@ export class AuthService {
       return saved;
     });
 
-    return this.generateToken(user);
+    return await this.generateToken(user);
   }
 
   async validateUser(userId: string): Promise<User | null> {

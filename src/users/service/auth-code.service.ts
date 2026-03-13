@@ -130,7 +130,7 @@ export class AuthCodeService {
         this.logger.log(`verifyCode: new user registered, userId=${user.id}, language=${resolvedLanguage}`);
       }
 
-      return this.authService.generateToken(user);
+      return await this.authService.generateToken(user);
     });
   }
 
