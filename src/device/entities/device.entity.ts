@@ -33,10 +33,10 @@ export class Device {
   @Column({ name: 'build_number' })
   buildNumber: string;
 
-  @Column({ nullable: true })
+  @Column({ name: 'model', type: 'varchar', nullable: true })
   model: string | null;
 
-  @Column({ nullable: true })
+  @Column({ name: 'manufacturer', type: 'varchar', nullable: true })
   manufacturer: string | null;
 
   @Column({ name: 'last_seen_at', type: 'timestamptz', default: () => 'CURRENT_TIMESTAMP' })

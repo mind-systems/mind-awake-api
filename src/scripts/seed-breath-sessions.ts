@@ -10,7 +10,7 @@ import 'reflect-metadata';
 import { config } from 'dotenv';
 import * as path from 'path';
 import * as fs from 'fs';
-import { DataSource, Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, Index } from 'typeorm';
+import { DataSource, Entity, PrimaryGeneratedColumn, Column, UpdateDateColumn, Index } from 'typeorm';
 
 // 1. Load env
 const envFile = process.env.envFile || '.env';
@@ -38,7 +38,7 @@ class BreathSession {
   @Index()
   shared: boolean;
 
-  @CreateDateColumn()
+  @Column('timestamptz', { name: 'createdAt' })
   @Index()
   createdAt: Date;
 
@@ -74,11 +74,13 @@ async function main() {
   try {
     const repo = AppDataSource.getRepository(BreathSession);
 
-    const records = sessions.map((s: any) => ({
+    const now = new Date();
+    const records = sessions.map((s: any, i: number) => ({
       userId,
       description: s.description,
       exercises: s.exercises,
       shared: s.shared ?? false,
+      createdAt: new Date(now.getTime() - i * 24 * 60 * 60 * 1000),
     }));
 
     await repo.insert(records);
