@@ -1,13 +1,13 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { JwtPayload, RequestWithUser } from '../interfaces/auth.interface';
-import { JwtBlacklistService } from '../service/jwt-blacklist.service';
+import { SessionService } from '../service/session.service';
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
   constructor(
     private readonly jwtService: JwtService,
-    private readonly blacklistService: JwtBlacklistService,
+    private readonly sessionService: SessionService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -18,16 +18,16 @@ export class JwtAuthGuard implements CanActivate {
       throw new UnauthorizedException('JWT token not found');
     }
 
-    const isRevoked = await this.blacklistService.isRevoked(token);
-    if (isRevoked) {
-      throw new UnauthorizedException('JWT token revoked');
-    }
-
     try {
       const payload = await this.jwtService.verifyAsync(token);
+      const isValid = await this.sessionService.isValid(token);
+      if (!isValid) {
+        throw new UnauthorizedException('Session not found or revoked');
+      }
       request.user = payload as JwtPayload;
       return true;
     } catch (error: any) {
+      if (error instanceof UnauthorizedException) throw error;
       throw new UnauthorizedException('Invalid or expired JWT token');
     }
   }

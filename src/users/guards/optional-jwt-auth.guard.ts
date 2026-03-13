@@ -1,13 +1,13 @@
 import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { JwtPayload, RequestWithUser } from '../interfaces/auth.interface';
-import { JwtBlacklistService } from '../service/jwt-blacklist.service';
+import { SessionService } from '../service/session.service';
 
 @Injectable()
 export class OptionalJwtAuthGuard implements CanActivate {
   constructor(
     private readonly jwtService: JwtService,
-    private readonly blacklistService: JwtBlacklistService,
+    private readonly sessionService: SessionService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -18,16 +18,14 @@ export class OptionalJwtAuthGuard implements CanActivate {
       return true;
     }
 
-    const isRevoked = await this.blacklistService.isRevoked(token);
-    if (isRevoked) {
-      return true;
-    }
-
     try {
       const payload = await this.jwtService.verifyAsync(token);
-      request.user = payload as JwtPayload;
+      const isValid = await this.sessionService.isValid(token);
+      if (isValid) {
+        request.user = payload as JwtPayload;
+      }
     } catch {
-      // Invalid token — treat as anonymous
+      // Invalid token or missing session — treat as anonymous
     }
 
     return true;
