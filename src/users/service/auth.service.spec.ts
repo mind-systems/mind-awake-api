@@ -90,6 +90,20 @@ describe('AuthService', () => {
     expect(service).toBeDefined();
   });
 
+  describe('generateToken', () => {
+    it('creates a session and returns access token', async () => {
+      const user = makeUser();
+
+      const result = await service.generateToken(user);
+
+      expect(jwtService.sign).toHaveBeenCalledWith(
+        expect.objectContaining({ sub: user.id, email: user.email }),
+      );
+      expect(sessionService.create).toHaveBeenCalledWith('mock-jwt-token', user.id);
+      expect(result.accessToken).toBe('mock-jwt-token');
+    });
+  });
+
   describe('logout', () => {
     it('should revoke the session', async () => {
       const mockRequest = { headers: { authorization: 'Bearer mock-token' } } as any;

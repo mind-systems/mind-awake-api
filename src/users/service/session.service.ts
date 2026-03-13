@@ -26,11 +26,8 @@ export class SessionService {
 
   async isValid(token: string): Promise<boolean> {
     const tokenHash = this.hash(token);
-    const session = await this.repo.findOne({ where: { tokenHash } });
-    if (!session) return false;
-
-    await this.repo.update(session.id, { lastSeenAt: new Date() });
-    return true;
+    const result = await this.repo.update({ tokenHash }, { lastSeenAt: new Date() });
+    return (result.affected ?? 0) > 0;
   }
 
   async revoke(token: string): Promise<void> {

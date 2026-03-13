@@ -11,8 +11,7 @@ describe('SessionService', () => {
     repo = {
       create: jest.fn(),
       save: jest.fn().mockResolvedValue(undefined),
-      findOne: jest.fn(),
-      update: jest.fn().mockResolvedValue(undefined),
+      update: jest.fn().mockResolvedValue({ affected: 0 }),
       delete: jest.fn().mockResolvedValue({ affected: 0 }),
     };
 
@@ -36,33 +35,34 @@ describe('SessionService', () => {
 
   describe('isValid', () => {
     it('returns false when no session found', async () => {
-      repo.findOne.mockResolvedValue(null);
+      repo.update.mockResolvedValue({ affected: 0 });
 
       const result = await service.isValid('unknown-token');
 
       expect(result).toBe(false);
-      expect(repo.update).not.toHaveBeenCalled();
     });
 
     it('returns true and updates lastSeenAt when session exists', async () => {
-      const session = { id: 'sess-1', tokenHash: hash('valid-token') };
-      repo.findOne.mockResolvedValue(session);
+      repo.update.mockResolvedValue({ affected: 1 });
 
       const result = await service.isValid('valid-token');
 
       expect(result).toBe(true);
       expect(repo.update).toHaveBeenCalledWith(
-        'sess-1',
+        { tokenHash: hash('valid-token') },
         expect.objectContaining({ lastSeenAt: expect.any(Date) }),
       );
     });
 
     it('looks up by correct hash', async () => {
-      repo.findOne.mockResolvedValue(null);
+      repo.update.mockResolvedValue({ affected: 0 });
 
       await service.isValid('token-abc');
 
-      expect(repo.findOne).toHaveBeenCalledWith({ where: { tokenHash: hash('token-abc') } });
+      expect(repo.update).toHaveBeenCalledWith(
+        { tokenHash: hash('token-abc') },
+        expect.any(Object),
+      );
     });
   });
 

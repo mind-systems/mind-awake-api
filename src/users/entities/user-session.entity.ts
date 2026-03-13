@@ -11,6 +11,7 @@ export class UserSession {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Index()
   @Column()
   userId: string;
 
