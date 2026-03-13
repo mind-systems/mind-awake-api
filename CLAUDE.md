@@ -53,7 +53,7 @@ AppModule
 
 ### Auth system
 
-Authentication is passwordless — email + one-time code. See [`docs/email-auth.md`](docs/email-auth.md) for the full flow.
+Authentication is passwordless — email + one-time code.
 
 All protected routes use **`JwtAuthGuard`** (passport-jwt), which validates the token against the **`user_sessions`** table. On logout the session is deleted; expired sessions are purged nightly via `@Cron`.
 
@@ -95,7 +95,7 @@ Swagger UI is available at `/api/docs` and is disabled in production (`NODE_ENV 
 
 | Document | Path | Description |
 |----------|------|-------------|
-| Email Auth | `docs/email-auth.md` | Passwordless OTP flow — endpoints, DB, mail, token lifecycle |
-| Google Auth | `docs/google-auth.md` | Google Sign-In via server auth code flow |
-| User Profile | `docs/user-profile.md` | Profile update, language preference |
-| Breath Sessions | `docs/breath-sessions.md` | Complexity calculation for breath sessions |
+| Email Auth | `docs/auth/email-auth.md` | Passwordless OTP flow — endpoints, DB, mail, token lifecycle |
+| Google Auth | `docs/auth/google-auth.md` | Google Sign-In via server auth code flow |
+| User Profile | `docs/auth/user-profile.md` | Profile update, language preference |
+| Breath Sessions | `docs/breath/breath-sessions.md` | Complexity calculation for breath sessions |
