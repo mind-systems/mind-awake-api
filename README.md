@@ -112,6 +112,7 @@ npm test src/users/service/auth.service.spec.ts
 | [Email Auth](docs/email-auth.md) | Беспарольный вход через OTP-код на email |
 | [Google Auth](docs/google-auth.md) | Вход через Google Sign-In (server auth code flow) |
 | [User Profile](docs/user-profile.md) | Обновление профиля и языка интерфейса |
+| [Breath Sessions](docs/breath-sessions.md) | Расчёт сложности (complexity) сессий дыхания |
 
 ## Документация и логи
 
