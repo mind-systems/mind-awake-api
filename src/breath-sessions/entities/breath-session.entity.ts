@@ -46,6 +46,10 @@ export class BreathSession {
   @Column('jsonb')
   exercises: BreathExercise[];
 
+  @ApiProperty({ example: 1260 })
+  @Column({ name: 'complexity', type: 'float', nullable: false, default: 0 })
+  complexity: number;
+
   @ApiProperty({ example: false })
   @Column('boolean', { default: false })
   @Index()

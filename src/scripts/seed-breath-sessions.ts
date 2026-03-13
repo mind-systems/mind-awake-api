@@ -34,6 +34,9 @@ class BreathSession {
   @Column('jsonb')
   exercises: object[];
 
+  @Column({ type: 'float', default: 0 })
+  complexity: number;
+
   @Column('boolean', { default: false })
   @Index()
   shared: boolean;
@@ -79,6 +82,7 @@ async function main() {
       userId,
       description: s.description,
       exercises: s.exercises,
+      complexity: s.complexity ?? 0,
       shared: s.shared ?? false,
       createdAt: new Date(now.getTime() - i * 24 * 60 * 60 * 1000),
     }));

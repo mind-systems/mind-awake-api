@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { BreathSession } from './entities/breath-session.entity';
 import { BreathSessionSettingsService } from './breath-session-settings.service';
 import { CreateBreathSessionDto, UpdateBreathSessionDto, ReplaceBreathSessionDto } from './dto/breath-session.dto';
+import { calculateComplexity } from './complexity/breath-session-complexity.calculator';
 
 @Injectable()
 export class BreathSessionsService {
@@ -19,6 +20,7 @@ export class BreathSessionsService {
       ...createDto,
       userId,
       shared: createDto.shared ?? false,
+      complexity: calculateComplexity(createDto.exercises),
     });
 
     return this.breathSessionRepository.save(session);
@@ -114,6 +116,9 @@ export class BreathSessionsService {
     }
 
     Object.assign(session, updateDto);
+    if (updateDto.exercises) {
+      session.complexity = calculateComplexity(updateDto.exercises);
+    }
     return this.breathSessionRepository.save(session);
   }
 
@@ -131,6 +136,7 @@ export class BreathSessionsService {
     session.description = dto.description;
     session.exercises = dto.exercises;
     session.shared = dto.shared;
+    session.complexity = calculateComplexity(dto.exercises);
 
     return this.breathSessionRepository.save(session);
   }

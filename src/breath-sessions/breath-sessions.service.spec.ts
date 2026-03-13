@@ -8,13 +8,107 @@ const makeSession = (overrides: Partial<BreathSession> = {}): BreathSession =>
     userId: 'user-uuid',
     description: 'Test session',
     exercises: [],
+    complexity: 0,
     shared: false,
     createdAt: new Date('2026-01-01T00:00:00Z'),
     updatedAt: new Date('2026-01-01T00:00:00Z'),
     ...overrides,
   });
 
+const sampleExercises = [
+  {
+    steps: [
+      { type: 'inhale' as const, duration: 4 },
+      { type: 'exhale' as const, duration: 4 },
+    ],
+    restDuration: 0,
+    repeatCount: 3,
+  },
+];
+
 describe('BreathSessionsService', () => {
+  describe('create', () => {
+    let service: BreathSessionsService;
+    let repository: jest.Mocked<any>;
+
+    beforeEach(() => {
+      repository = {
+        create: jest.fn((data: any) => Object.assign(new BreathSession(), data)),
+        save: jest.fn((entity: any) => Promise.resolve(entity)),
+      };
+      service = new BreathSessionsService(repository, {} as any);
+    });
+
+    it('computes complexity from exercises', async () => {
+      const dto = { description: 'Test', exercises: sampleExercises, shared: false };
+      const result = await service.create('user-uuid', dto);
+
+      // (4+4)*3 = 24
+      expect(result.complexity).toBe(24);
+    });
+
+    it('sets complexity to 0 for empty exercises', async () => {
+      const dto = { description: 'Test', exercises: [], shared: false };
+      const result = await service.create('user-uuid', dto);
+
+      expect(result.complexity).toBe(0);
+    });
+  });
+
+  describe('update', () => {
+    let service: BreathSessionsService;
+    let repository: jest.Mocked<any>;
+
+    beforeEach(() => {
+      repository = {
+        findOne: jest.fn(),
+        save: jest.fn((entity: any) => Promise.resolve(entity)),
+      };
+      service = new BreathSessionsService(repository, {} as any);
+    });
+
+    it('recalculates complexity when exercises change', async () => {
+      const existing = makeSession({ complexity: 0 });
+      repository.findOne.mockResolvedValue(existing);
+
+      const result = await service.update('session-uuid', 'user-uuid', { exercises: sampleExercises });
+
+      expect(result.complexity).toBe(24);
+    });
+
+    it('keeps existing complexity when exercises are not provided', async () => {
+      const existing = makeSession({ complexity: 42 });
+      repository.findOne.mockResolvedValue(existing);
+
+      const result = await service.update('session-uuid', 'user-uuid', { description: 'New desc' });
+
+      expect(result.complexity).toBe(42);
+    });
+  });
+
+  describe('replace', () => {
+    let service: BreathSessionsService;
+    let repository: jest.Mocked<any>;
+
+    beforeEach(() => {
+      repository = {
+        findOne: jest.fn(),
+        save: jest.fn((entity: any) => Promise.resolve(entity)),
+      };
+      service = new BreathSessionsService(repository, {} as any);
+    });
+
+    it('computes complexity from the new exercises', async () => {
+      const existing = makeSession({ complexity: 0 });
+      repository.findOne.mockResolvedValue(existing);
+
+      const dto = { description: 'Replaced', exercises: sampleExercises, shared: true };
+      const result = await service.replace('session-uuid', 'user-uuid', dto);
+
+      expect(result.complexity).toBe(24);
+    });
+  });
+
   describe('findList', () => {
     let service: BreathSessionsService;
     let repository: jest.Mocked<any>;
