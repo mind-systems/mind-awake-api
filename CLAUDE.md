@@ -55,7 +55,7 @@ AppModule
 
 Authentication is passwordless — email + one-time code. See [`docs/email-auth.md`](docs/email-auth.md) for the full flow.
 
-All protected routes use **`JwtAuthGuard`** (passport-jwt), which also checks the **JWT blacklist** table before granting access. The blacklist is a PostgreSQL table (`jwt_blacklist`) — revoked tokens are inserted on logout and purged nightly via `@Cron`.
+All protected routes use **`JwtAuthGuard`** (passport-jwt), which validates the token against the **`user_sessions`** table. On logout the session is deleted; expired sessions are purged nightly via `@Cron`.
 
 ### Entities belong to their module
 
@@ -90,3 +90,12 @@ Controllers handle HTTP concerns only (status codes, response shape, Swagger dec
 | `.env.prod` | Docker prod (`make up-prod`) |
 
 Swagger UI is available at `/api/docs` and is disabled in production (`NODE_ENV === 'production'`).
+
+### Documentation
+
+| Document | Path | Description |
+|----------|------|-------------|
+| Email Auth | `docs/email-auth.md` | Passwordless OTP flow — endpoints, DB, mail, token lifecycle |
+| Google Auth | `docs/google-auth.md` | Google Sign-In via server auth code flow |
+| User Profile | `docs/user-profile.md` | Profile update, language preference |
+| Breath Sessions | `docs/breath-sessions.md` | Complexity calculation for breath sessions |

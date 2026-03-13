@@ -1,5 +1,3 @@
-[← Email Auth](email-auth.md) · [Back to README](../README.md) · [User Profile →](user-profile.md)
-
 # Google Authentication
 
 Вход через Google Sign-In использует **server authorization code flow**: мобильный клиент получает от Google `serverAuthCode` и передаёт его бэкенду — Google токены обрабатываются исключительно на сервере.
@@ -43,7 +41,3 @@ Body: UserResponseDto
 | `src/users/dto/google-auth.dto.ts` | DTO запроса |
 | `src/users/service/auth.service.ts` | Метод `signInWithGoogle` |
 | `src/users/auth.controller.ts` | `POST /auth/google` |
-
-## See Also
-
-- [Email Auth](email-auth.md) — беспарольный вход через OTP-код

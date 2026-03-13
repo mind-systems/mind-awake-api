@@ -74,7 +74,7 @@ Between modules — only through the module's public exports:
 // users/auth.module.ts — defines the public API
 @Module({
   exports: [JwtAuthGuard, AuthService, CurrentUserDecorator],  // public API
-  providers: [AuthService, JwtBlacklistService, JwtStrategy],  // internal
+  providers: [AuthService, SessionService, JwtStrategy],  // internal
 })
 export class AuthModule {}
 
@@ -163,10 +163,10 @@ export class MeditationsService {
 ```typescript
 // Only export what other modules need
 @Module({
-  providers: [AuthService, JwtBlacklistService, JwtStrategy],
+  providers: [AuthService, SessionService, JwtStrategy],
   exports: [
     JwtAuthGuard,       // guards used by feature modules
-    // NOT exporting: JwtBlacklistService, JwtStrategy (internal)
+    // NOT exporting: SessionService, JwtStrategy (internal)
   ],
 })
 export class AuthModule {}

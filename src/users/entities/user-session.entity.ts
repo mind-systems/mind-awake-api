@@ -12,7 +12,7 @@ export class UserSession {
   id: string;
 
   @Index()
-  @Column()
+  @Column('uuid')
   userId: string;
 
   @Index()

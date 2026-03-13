@@ -339,7 +339,7 @@ this.logger.error('Firebase token verification failed', error?.stack ?? error);
 
 - **Token transport in `POST /auth/login`**: The guard checks both the `Authorization` header and `request.body.token`. The `LoginDto` requires `token` as a body field, so the guard will find it regardless of whether the client sends the header. Sending both (header + body) is redundant but harmless.
 
-- **JWT blacklist grows unbounded without cleanup**: `JwtBlacklistService` runs a `@Cron(CronExpression.EVERY_DAY_AT_3AM)` cleanup. This requires `ScheduleModule.forRoot()` to be registered in `AppModule`. Without it, the cron silently never fires and the `jwt_blacklist` table grows indefinitely.
+- **Sessions grow unbounded without cleanup**: `SessionService` runs a `@Cron(CronExpression.EVERY_DAY_AT_3AM)` cleanup. This requires `ScheduleModule.forRoot()` to be registered in `AppModule`. Without it, the cron silently never fires and the `user_sessions` table grows indefinitely.
 
 - **`ConfigService` not available in `FirebaseModule`**: `FirebaseModule` reads `process.env` directly because it is imported before `ConfigModule.forRoot()` completes. If you refactor to use `ConfigService`, you must add `imports: [ConfigModule]` inside `FirebaseModule` and use `useFactory: async (config: ConfigService) => { ... }` with `inject: [ConfigService]`.
 

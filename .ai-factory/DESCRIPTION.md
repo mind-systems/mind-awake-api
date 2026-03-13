@@ -5,7 +5,7 @@ Mind Awake API is a NestJS-based REST backend for a mindfulness breathing applic
 
 ## Core Features
 - **Authentication:** Passwordless OTP via email — `POST /auth/send-code` + `POST /auth/verify-code` → JWT (auto-creates account on first login)
-- **JWT Security:** Bearer guard with JWT blacklist (revocation on logout), scheduled cleanup of expired tokens
+- **JWT Security:** Bearer guard with session-based validation (session deleted on logout), scheduled cleanup of expired sessions
 - **Email Delivery:** Resend integration with HTML template (magic link + manual code, 15-min TTL)
 - **Breath Sessions:** Full CRUD with owner-based access control and public shared-link support
 - **API Documentation:** Swagger/OpenAPI at `/api/docs`, all DTOs decorated
@@ -22,7 +22,7 @@ Mind Awake API is a NestJS-based REST backend for a mindfulness breathing applic
 - **Mail:** Resend SDK
 - **Validation:** `class-validator` + `class-transformer`
 - **HTTP Security:** Helmet
-- **Scheduling:** `@nestjs/schedule` (Cron for JWT blacklist + auth codes cleanup)
+- **Scheduling:** `@nestjs/schedule` (Cron for expired sessions + auth codes cleanup)
 - **Docs:** `@nestjs/swagger` + `swagger-ui-express`
 - **Logging:** Winston + `nest-winston` + `winston-daily-rotate-file`
 - **Testing:** Jest + ts-jest + supertest
