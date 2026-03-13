@@ -5,14 +5,14 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { User } from '../entities/user.entity';
 import { JwtService } from '@nestjs/jwt';
-import { JwtBlacklistService } from './jwt-blacklist.service';
+import { SessionService } from './session.service';
 import { GoogleTokenService } from './google-token.service';
 import { UserRole } from '../interfaces/user-role.enum';
 
 describe('AuthService', () => {
   let service: AuthService;
   let jwtService;
-  let blacklistService;
+  let sessionService;
   let googleTokenService;
   let dataSource;
   let txUserRepo;
@@ -44,13 +44,13 @@ describe('AuthService', () => {
 
     jwtService = {
       sign: jest.fn().mockReturnValue('mock-jwt-token'),
-      decode: jest.fn(),
       verifyAsync: jest.fn(),
     };
 
-    blacklistService = {
-      add: jest.fn(),
-      isRevoked: jest.fn(),
+    sessionService = {
+      create: jest.fn().mockResolvedValue(undefined),
+      revoke: jest.fn().mockResolvedValue(undefined),
+      isValid: jest.fn().mockResolvedValue(true),
     };
 
     googleTokenService = {
@@ -69,8 +69,8 @@ describe('AuthService', () => {
           useValue: jwtService,
         },
         {
-          provide: JwtBlacklistService,
-          useValue: blacklistService,
+          provide: SessionService,
+          useValue: sessionService,
         },
         {
           provide: GoogleTokenService,
@@ -91,25 +91,20 @@ describe('AuthService', () => {
   });
 
   describe('logout', () => {
-    it('should blacklist the token', async () => {
+    it('should revoke the session', async () => {
       const mockRequest = { headers: { authorization: 'Bearer mock-token' } } as any;
-      const mockPayload = { sub: 'uuid-1', exp: Math.floor(Date.now() / 1000) + 3600 };
-
-      jwtService.decode.mockReturnValue(mockPayload);
-      blacklistService.add.mockResolvedValue(undefined);
 
       await service.logout(mockRequest);
 
-      expect(jwtService.decode).toHaveBeenCalledWith('mock-token');
-      expect(blacklistService.add).toHaveBeenCalledWith('mock-token', expect.any(Number));
+      expect(sessionService.revoke).toHaveBeenCalledWith('mock-token');
     });
 
-    it('should not blacklist if token is missing', async () => {
+    it('should not revoke if token is missing', async () => {
       const mockRequest = { headers: {} } as any;
 
       await service.logout(mockRequest);
 
-      expect(blacklistService.add).not.toHaveBeenCalled();
+      expect(sessionService.revoke).not.toHaveBeenCalled();
     });
   });
 

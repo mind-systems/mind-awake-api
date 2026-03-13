@@ -67,7 +67,7 @@ describe('AuthCodeService', () => {
     };
 
     authService = {
-      generateToken: jest.fn().mockReturnValue({ accessToken: 'jwt-token', user: {} }),
+      generateToken: jest.fn().mockResolvedValue({ accessToken: 'jwt-token', user: {} }),
     };
 
     service = new AuthCodeService(authCodeRepository, dataSource, mailService, authService);
