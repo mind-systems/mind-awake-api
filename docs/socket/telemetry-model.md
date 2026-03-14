@@ -26,27 +26,72 @@ LiveSession
 
 Типичная ошибка — отправлять `activity:start` при инициализации экрана. Пользователь открыл экран, прочитал инструкцию, подождал 30 секунд и нажал Play — все эти 30 секунд попадут в сессию как «до первой фазы», замусорив данные.
 
-## Расширяемость: любые инструкции
+## Two independent timelines
 
-Текущая реализация пишет фазы дыхательного движка (`inhale`, `hold`, `exhale`, `rest`). Но концептуально телеметрия описывает **любую инструкцию любого типа** — движок является лишь первым источником.
+The telemetry stream and the future biometric stream are kept strictly separate:
+
+```
+Session timeline (telemetry / instruction log)
+──────────────────────────────────────────────
+session_started → breath_phase → … → paused → resumed → … → session_ended
+
+Biometric timeline
+──────────────────
+HR sample → HR sample → SpO2 → respiration → …
+```
+
+Analytics performs a time-join on `sessionId` + `timestamp` to correlate the two. This means the telemetry stream must be **complete** — it must include lifecycle transitions (pause, resume, start, end) so any biometric gap can be explained without touching a separate table.
+
+## Payload shape
+
+Every sample uses the same envelope regardless of source or event type:
 
 ```
 TelemetrySample
-├── sessionId  — привязка к LiveSession
-├── dataType   — тип инструкции: "breath_phase" | "audio_cue" | "haptic" | ...
-├── payload    — произвольный JSON с параметрами инструкции
-└── timestamp  — UTC unix ms, момент выдачи инструкции
+├── sessionId  — links to LiveSession
+├── dataType   — discriminator: "breath_phase" | "session_event" | "audio_cue" | "haptic" | ...
+├── payload    — JSONB, shape depends on dataType
+└── timestamp  — UTC unix ms, moment the instruction was issued
 ```
 
-Примеры:
+### `breath_phase` (written by client)
 
-| dataType | payload | Когда |
-|----------|---------|-------|
-| `breath_phase` | `{ phase: "exhale", durationMs: 6000 }` | Движок перешёл в фазу выдоха |
-| `audio_cue` | `{ file: "calm_exhale.ogg", durationMs: 3200 }` | Приложение запустило голосовую подсказку |
-| `haptic` | `{ pattern: "long_pulse" }` | Вибрация как сигнал смены фазы |
+```json
+{ "phase": "exhale", "durationMs": 6000 }
+```
 
-Сервер хранит все типы в одной таблице `session_stream_samples` — `payload` является полем JSONB. Новые типы инструкций добавляются без изменения схемы.
+Sent by the mobile app on each phase transition while the engine is running.
+
+### `session_event` (written by server)
+
+```json
+{ "event": "session_started" }
+{ "event": "paused" }
+{ "event": "resumed" }
+{ "event": "session_ended" }
+```
+
+Written by `ActivityEngine` when it processes `activity:start`, `activity:pause`, `activity:resume`, and `activity:end`. **Server is the authoritative source** for lifecycle events — no race conditions, no dropped markers.
+
+### Future instruction types (deferred)
+
+| dataType | payload example | When |
+|----------|-----------------|------|
+| `audio_cue` | `{ file: "calm_exhale.ogg", durationMs: 3200 }` | App played an audio instruction |
+| `haptic` | `{ pattern: "long_pulse" }` | Vibration as phase-change signal |
+
+All types share the same `session_stream_samples` table (`payload` is JSONB). New types require no schema changes.
+
+## Gate logic during pause
+
+When a session is paused, `TelemetryGateway` blocks only `breath_phase` events — lifecycle events must always pass through:
+
+```
+if (session.isPaused && sample.dataType === 'breath_phase') → drop, return data:ack { error: 'session_paused' }
+else → accept
+```
+
+This ensures the `paused` marker is followed by a clean gap in breath_phase samples, and the `resumed` marker closes the gap — without losing the markers themselves.
 
 ## Роль в биометрической платформе
 

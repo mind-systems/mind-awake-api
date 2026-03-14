@@ -19,6 +19,8 @@ import { ActivityEngine } from '../services/activity-engine.service';
 import { GraceTimerManager } from '../services/grace-timer.service';
 import {
   ACTIVITY_END,
+  ACTIVITY_PAUSE,
+  ACTIVITY_RESUME,
   ACTIVITY_START,
   PRESENCE_BACKGROUND,
   PRESENCE_FOREGROUND,
@@ -90,8 +92,9 @@ export class LiveGateway implements OnGatewayConnection, OnGatewayDisconnect {
         .then((session) => {
           if (session) {
             client.emit(SESSION_STATE, {
-              sessionId: session.id,
+              liveSessionId: session.id,
               status: 'resumed',
+              isPaused: false,
             });
             this.logger.log(
               `Session resumed: userId=${userId} sessionId=${session.id}`,
@@ -172,14 +175,14 @@ export class LiveGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const existing = this.activityEngine.getActiveSession(userId);
     if (existing) {
       client.emit(SESSION_STATE, {
-        sessionId: existing.sessionId,
+        liveSessionId: existing.sessionId,
         status: 'active',
       });
       return;
     }
 
     const session = await this.activityEngine.startActivity(userId, dto);
-    client.emit(SESSION_STATE, { sessionId: session.id, status: 'active' });
+    client.emit(SESSION_STATE, { liveSessionId: session.id, status: 'active' });
     this.logger.log(
       `Activity started: userId=${userId} sessionId=${session.id}`,
     );
@@ -193,8 +196,54 @@ export class LiveGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const session = await this.activityEngine.endActivity(userId);
     if (!session) return;
 
-    client.emit(SESSION_STATE, { sessionId: session.id, status: 'completed' });
+    client.emit(SESSION_STATE, { liveSessionId: session.id, status: 'completed' });
     this.logger.log(`Activity ended: userId=${userId} sessionId=${session.id}`);
+  }
+
+  @SubscribeMessage(ACTIVITY_PAUSE)
+  handleActivityPause(@ConnectedSocket() client: Socket): void {
+    const userId = (client as AuthenticatedSocket).data.userId;
+    if (!userId) return;
+
+    try {
+      const state = this.activityEngine.pauseActivity(userId);
+      client.emit(SESSION_STATE, {
+        liveSessionId: state.sessionId,
+        status: 'active',
+        isPaused: true,
+      });
+    } catch (err: unknown) {
+      const code =
+        err instanceof Error ? err.message : 'no_active_session';
+      client.emit(SESSION_ERROR, {
+        code,
+        message: `Cannot pause: ${code}`,
+        timestamp: Date.now(),
+      });
+    }
+  }
+
+  @SubscribeMessage(ACTIVITY_RESUME)
+  handleActivityResume(@ConnectedSocket() client: Socket): void {
+    const userId = (client as AuthenticatedSocket).data.userId;
+    if (!userId) return;
+
+    try {
+      const state = this.activityEngine.unpauseActivity(userId);
+      client.emit(SESSION_STATE, {
+        liveSessionId: state.sessionId,
+        status: 'active',
+        isPaused: false,
+      });
+    } catch (err: unknown) {
+      const code =
+        err instanceof Error ? err.message : 'no_active_session';
+      client.emit(SESSION_ERROR, {
+        code,
+        message: `Cannot resume: ${code}`,
+        timestamp: Date.now(),
+      });
+    }
   }
 
   // Fire-and-forget — no ack returned. Clients treat presence events as best-effort.

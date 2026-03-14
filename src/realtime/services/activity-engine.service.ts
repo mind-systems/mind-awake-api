@@ -8,6 +8,11 @@ import { ActivityState } from '../interfaces/activity-state.interface';
 import { ActivityStartDto } from '../dto/activity-start.dto';
 import { SessionStatus } from '../enums/session-status.enum';
 import { ActivityType } from '../enums/activity-type.enum';
+import { StreamEngine } from './stream-engine.service';
+import {
+  LIVE_SESSION_PAUSED,
+  LIVE_SESSION_UNPAUSED,
+} from '../events/live.events';
 
 @Injectable()
 export class ActivityEngine {
@@ -18,6 +23,7 @@ export class ActivityEngine {
     private readonly repo: Repository<LiveSession>,
     private readonly stateStore: StateStore,
     private readonly eventEmitter: EventEmitter2,
+    private readonly streamEngine: StreamEngine,
   ) {}
 
   async startActivity(
@@ -43,8 +49,15 @@ export class ActivityEngine {
       activityRefId: saved.activityRefId,
       startedAt: saved.startedAt,
       lastActivityAt: saved.lastActivityAt,
+      isPaused: false,
     };
     this.stateStore.activityMap.set(userId, state);
+
+    this.streamEngine.push(saved.id, {
+      timestamp: Date.now(),
+      data: { dataType: 'session_event', event: 'session_started' },
+    });
+
     this.logger.log(
       `Session started: userId=${userId} sessionId=${saved.id} activityType=${saved.activityType}`,
     );
@@ -66,6 +79,11 @@ export class ActivityEngine {
     session.status = SessionStatus.COMPLETED;
     session.endedAt = now;
     const saved = await this.repo.save(session);
+
+    this.streamEngine.push(state.sessionId, {
+      timestamp: Date.now(),
+      data: { dataType: 'session_event', event: 'session_ended' },
+    });
 
     this.stateStore.activityMap.delete(userId);
     this.logger.log(
@@ -120,6 +138,11 @@ export class ActivityEngine {
     session.endedAt = now;
     const saved = await this.repo.save(session);
 
+    this.streamEngine.push(state.sessionId, {
+      timestamp: Date.now(),
+      data: { dataType: 'session_event', event: 'session_abandoned' },
+    });
+
     this.stateStore.activityMap.delete(userId);
     this.logger.log(
       `Session abandoned: userId=${userId} sessionId=${saved.id} durationMs=${saved.endedAt ? saved.endedAt.getTime() - saved.startedAt.getTime() : 0}`,
@@ -132,6 +155,64 @@ export class ActivityEngine {
       endedAt: saved.endedAt,
       activityType: saved.activityType as ActivityType,
     });
+  }
+
+  pauseActivity(userId: string): ActivityState {
+    const state = this.stateStore.activityMap.get(userId);
+    if (!state) {
+      throw new Error('no_active_session');
+    }
+    if (state.isPaused) {
+      throw new Error('already_paused');
+    }
+
+    state.isPaused = true;
+    state.lastActivityAt = new Date();
+
+    this.streamEngine.push(state.sessionId, {
+      timestamp: Date.now(),
+      data: { dataType: 'session_event', event: 'paused' },
+    });
+
+    this.eventEmitter.emit(LIVE_SESSION_PAUSED, {
+      sessionId: state.sessionId,
+      userId,
+    });
+
+    this.logger.log(
+      `Session paused: userId=${userId} sessionId=${state.sessionId}`,
+    );
+
+    return state;
+  }
+
+  unpauseActivity(userId: string): ActivityState {
+    const state = this.stateStore.activityMap.get(userId);
+    if (!state) {
+      throw new Error('no_active_session');
+    }
+    if (!state.isPaused) {
+      throw new Error('not_paused');
+    }
+
+    state.isPaused = false;
+    state.lastActivityAt = new Date();
+
+    this.streamEngine.push(state.sessionId, {
+      timestamp: Date.now(),
+      data: { dataType: 'session_event', event: 'resumed' },
+    });
+
+    this.eventEmitter.emit(LIVE_SESSION_UNPAUSED, {
+      sessionId: state.sessionId,
+      userId,
+    });
+
+    this.logger.log(
+      `Session unpaused: userId=${userId} sessionId=${state.sessionId}`,
+    );
+
+    return state;
   }
 
   getActiveSession(userId: string): ActivityState | undefined {
@@ -157,6 +238,7 @@ export class ActivityEngine {
     session.lastActivityAt = now;
     const saved = await this.repo.save(session);
     state.lastActivityAt = now;
+    state.isPaused = false;
     this.logger.log(
       `Session resumed: userId=${userId} sessionId=${saved.id} downtimeMs=${downtimeMs}`,
     );

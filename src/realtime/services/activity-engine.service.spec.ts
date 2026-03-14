@@ -18,6 +18,10 @@ function makeEmitter() {
   return { emit: jest.fn() };
 }
 
+function makeStreamEngine() {
+  return { push: jest.fn() };
+}
+
 function makeSession(overrides: Partial<LiveSession> = {}): LiveSession {
   const now = new Date();
   return {
@@ -37,13 +41,15 @@ describe('ActivityEngine', () => {
   let stateStore: StateStore;
   let repo: ReturnType<typeof makeRepo>;
   let emitter: ReturnType<typeof makeEmitter>;
+  let streamEngine: ReturnType<typeof makeStreamEngine>;
 
   beforeEach(() => {
     stateStore = new StateStore();
     repo = makeRepo();
     emitter = makeEmitter();
+    streamEngine = makeStreamEngine();
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-    engine = new ActivityEngine(repo as any, stateStore, emitter as any);
+    engine = new ActivityEngine(repo as any, stateStore, emitter as any, streamEngine as any);
   });
 
   describe('startActivity', () => {
@@ -75,6 +81,7 @@ describe('ActivityEngine', () => {
         activityType: ActivityType.BREATH_SESSION,
         startedAt: session.startedAt,
         lastActivityAt: session.lastActivityAt,
+        isPaused: false,
       });
       repo.findOne.mockResolvedValue(session);
       const savedSession = {
@@ -114,6 +121,7 @@ describe('ActivityEngine', () => {
         activityType: ActivityType.BREATH_SESSION,
         startedAt: new Date(),
         lastActivityAt: new Date(),
+        isPaused: false,
       });
 
       await engine.onDisconnect('user-1');
@@ -145,6 +153,7 @@ describe('ActivityEngine', () => {
         activityType: ActivityType.BREATH_SESSION,
         startedAt: session.startedAt,
         lastActivityAt: session.lastActivityAt,
+        isPaused: false,
       });
       repo.findOne.mockResolvedValue(session);
       const savedSession = {
@@ -175,6 +184,7 @@ describe('ActivityEngine', () => {
         activityType: ActivityType.BREATH_SESSION,
         startedAt: session.startedAt,
         lastActivityAt: session.lastActivityAt,
+        isPaused: false,
       });
       repo.findOne.mockResolvedValue(session);
 
@@ -193,6 +203,7 @@ describe('ActivityEngine', () => {
         activityType: ActivityType.BREATH_SESSION,
         startedAt: new Date(),
         lastActivityAt: new Date(),
+        isPaused: false,
       };
       stateStore.activityMap.set('user-1', state);
 
@@ -212,6 +223,7 @@ describe('ActivityEngine', () => {
         activityType: ActivityType.BREATH_SESSION,
         startedAt: session.startedAt,
         lastActivityAt: session.lastActivityAt,
+        isPaused: false,
       });
       repo.findOne.mockResolvedValue(session);
       const savedSession = {
@@ -247,6 +259,7 @@ describe('ActivityEngine', () => {
         activityType: ActivityType.BREATH_SESSION,
         startedAt: new Date(),
         lastActivityAt: new Date(),
+        isPaused: false,
       });
       repo.findOne.mockResolvedValue(null);
 

@@ -7,4 +7,5 @@ export interface ActivityState {
   activityRefId?: string;
   startedAt: Date;
   lastActivityAt: Date;
+  isPaused: boolean;
 }

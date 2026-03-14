@@ -32,6 +32,8 @@ function makeActivityEngine(): jest.Mocked<ActivityEngine> {
     abandonActivity: jest.fn(),
     getActiveSession: jest.fn(),
     resumeActivity: jest.fn(),
+    pauseActivity: jest.fn(),
+    unpauseActivity: jest.fn(),
   } as unknown as jest.Mocked<ActivityEngine>;
 }
 
@@ -233,7 +235,7 @@ describe('LiveGateway — single-connection policy', () => {
       expect(activityEngine.startActivity).toHaveBeenCalledWith('user-1', dto);
       // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(client.emit).toHaveBeenCalledWith(SESSION_STATE, {
-        sessionId: 'session-1',
+        liveSessionId: 'session-1',
         status: 'active',
       });
     });
@@ -245,6 +247,7 @@ describe('LiveGateway — single-connection policy', () => {
         activityType: ActivityType.BREATH_SESSION,
         startedAt: new Date(),
         lastActivityAt: new Date(),
+        isPaused: false,
       });
       const dto: ActivityStartDto = {
         activityType: ActivityType.BREATH_SESSION,
@@ -256,7 +259,7 @@ describe('LiveGateway — single-connection policy', () => {
       expect(activityEngine.startActivity).not.toHaveBeenCalled();
       // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(client.emit).toHaveBeenCalledWith(SESSION_STATE, {
-        sessionId: 'existing-session',
+        liveSessionId: 'existing-session',
         status: 'active',
       });
     });
@@ -275,7 +278,7 @@ describe('LiveGateway — single-connection policy', () => {
       expect(activityEngine.endActivity).toHaveBeenCalledWith('user-1');
       // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(client.emit).toHaveBeenCalledWith(SESSION_STATE, {
-        sessionId: 'session-1',
+        liveSessionId: 'session-1',
         status: 'completed',
       });
     });
@@ -313,6 +316,7 @@ describe('LiveGateway — single-connection policy', () => {
         activityType: ActivityType.BREATH_SESSION,
         startedAt: new Date(),
         lastActivityAt: new Date(),
+        isPaused: false,
       });
       activityEngine.resumeActivity.mockResolvedValue(session);
 
@@ -326,8 +330,9 @@ describe('LiveGateway — single-connection policy', () => {
       expect(activityEngine.resumeActivity).toHaveBeenCalledWith('user-1');
       // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(client.emit).toHaveBeenCalledWith(SESSION_STATE, {
-        sessionId: 'session-1',
+        liveSessionId: 'session-1',
         status: 'resumed',
+        isPaused: false,
       });
     });
 
@@ -352,6 +357,7 @@ describe('LiveGateway — single-connection policy', () => {
         activityType: ActivityType.BREATH_SESSION,
         startedAt: new Date(),
         lastActivityAt: new Date(),
+        isPaused: false,
       });
 
       gateway.handleDisconnect(client);

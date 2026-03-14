@@ -74,6 +74,11 @@ export class TelemetryGateway
       return;
     }
 
+    if (session.isPaused && dto.data?.dataType === 'breath_phase') {
+      client.emit(DATA_ACK, { error: 'session_paused' });
+      return;
+    }
+
     const result = this.streamEngine.push(session.sessionId, {
       timestamp: dto.timestamp,
       data: dto.data,

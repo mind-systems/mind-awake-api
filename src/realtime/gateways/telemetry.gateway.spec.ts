@@ -92,6 +92,7 @@ describe('TelemetryGateway', () => {
         activityType: ActivityType.BREATH_SESSION,
         startedAt: new Date(),
         lastActivityAt: new Date(),
+        isPaused: false,
       });
       streamEngine.push.mockReturnValue({
         accepted: true,
@@ -131,6 +132,7 @@ describe('TelemetryGateway', () => {
         activityType: ActivityType.BREATH_SESSION,
         startedAt: new Date(),
         lastActivityAt: new Date(),
+        isPaused: false,
       });
       streamEngine.push.mockReturnValue({
         accepted: false,
@@ -170,6 +172,7 @@ describe('TelemetryGateway', () => {
         activityType: ActivityType.BREATH_SESSION,
         startedAt: new Date(),
         lastActivityAt: new Date(),
+        isPaused: false,
       });
 
       gateway.handleDataStream(client, makeDto({ sessionId: 'session-1' }));
