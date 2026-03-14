@@ -49,9 +49,13 @@ function makeRepo(existingRow: Record<string, unknown> | null = null) {
 
   return {
     manager: {
-      transaction: jest.fn().mockImplementation(async (cb: (m: typeof manager) => Promise<void>) => {
-        await cb(manager);
-      }),
+      transaction: jest
+        .fn()
+        .mockImplementation(
+          async (cb: (m: typeof manager) => Promise<void>) => {
+            await cb(manager);
+          },
+        ),
     },
     findOne: jest.fn().mockResolvedValue(existingRow),
     _manager: manager,
@@ -72,9 +76,10 @@ describe('StatsService', () => {
     delete process.env.WS_MIN_SESSION_DURATION_S;
   });
 
-  function makeService(
-    existingRow: Record<string, unknown> | null = null,
-  ): { service: StatsService; repo: ReturnType<typeof makeRepo> } {
+  function makeService(existingRow: Record<string, unknown> | null = null): {
+    service: StatsService;
+    repo: ReturnType<typeof makeRepo>;
+  } {
     const repo = makeRepo(existingRow);
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     const svc = new StatsService(repo as any);
@@ -109,7 +114,10 @@ describe('StatsService', () => {
       expect(mgr.createQueryBuilder).toHaveBeenCalled();
       expect(repo._qb.orIgnore).toHaveBeenCalled();
       expect(mgr.save).toHaveBeenCalledTimes(1);
-      const [, saved] = mgr.save.mock.calls[0] as [unknown, Record<string, unknown>];
+      const [, saved] = mgr.save.mock.calls[0] as [
+        unknown,
+        Record<string, unknown>,
+      ];
       expect(saved.currentStreak).toBe(1);
       expect(saved.longestStreak).toBe(1);
       expect(saved.totalSessions).toBe(1);
@@ -133,7 +141,10 @@ describe('StatsService', () => {
       const end = new Date(NOW.getTime() + 20_000);
       await svc.finalise(makeEvent(start, end));
       const mgr = repo._manager;
-      const [, saved] = mgr.save.mock.calls[0] as [unknown, Record<string, unknown>];
+      const [, saved] = mgr.save.mock.calls[0] as [
+        unknown,
+        Record<string, unknown>,
+      ];
       expect(saved.totalSessions).toBe(1);
       expect(saved.currentStreak).toBe(1);
     });
@@ -154,7 +165,10 @@ describe('StatsService', () => {
       const end = new Date(NOW.getTime() + 30_000);
       await svc.finalise(makeEvent(start, end));
       const mgr = repo._manager;
-      const [, saved] = mgr.save.mock.calls[0] as [unknown, Record<string, unknown>];
+      const [, saved] = mgr.save.mock.calls[0] as [
+        unknown,
+        Record<string, unknown>,
+      ];
       expect(saved.currentStreak).toBe(4); // unchanged
       expect(saved.totalSessions).toBe(4);
     });
@@ -175,7 +189,10 @@ describe('StatsService', () => {
       const end = new Date(NOW.getTime() + 20_000);
       await svc.finalise(makeEvent(start, end));
       const mgr = repo._manager;
-      const [, saved] = mgr.save.mock.calls[0] as [unknown, Record<string, unknown>];
+      const [, saved] = mgr.save.mock.calls[0] as [
+        unknown,
+        Record<string, unknown>,
+      ];
       expect(saved.currentStreak).toBe(3);
       expect(saved.longestStreak).toBe(3);
     });
@@ -196,7 +213,10 @@ describe('StatsService', () => {
       const end = new Date(NOW.getTime() + 20_000);
       await svc.finalise(makeEvent(start, end));
       const mgr = repo._manager;
-      const [, saved] = mgr.save.mock.calls[0] as [unknown, Record<string, unknown>];
+      const [, saved] = mgr.save.mock.calls[0] as [
+        unknown,
+        Record<string, unknown>,
+      ];
       expect(saved.currentStreak).toBe(1);
       // longestStreak stays at 10
       expect(saved.longestStreak).toBe(10);
@@ -218,7 +238,10 @@ describe('StatsService', () => {
       const end = new Date(NOW.getTime() + 20_000);
       await svc.finalise(makeEvent(start, end));
       const mgr = repo._manager;
-      const [, saved] = mgr.save.mock.calls[0] as [unknown, Record<string, unknown>];
+      const [, saved] = mgr.save.mock.calls[0] as [
+        unknown,
+        Record<string, unknown>,
+      ];
       expect(saved.currentStreak).toBe(6);
       expect(saved.longestStreak).toBe(6);
     });

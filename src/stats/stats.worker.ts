@@ -11,8 +11,7 @@ export class StatsWorker {
 
   @OnEvent('session.completed')
   async onSessionCompleted(event: SessionEvent): Promise<void> {
-    const durationMs =
-      event.endedAt.getTime() - event.startedAt.getTime();
+    const durationMs = event.endedAt.getTime() - event.startedAt.getTime();
     this.logger.log(
       `Stats finalising: userId=${event.userId} sessionId=${event.sessionId} durationMs=${durationMs}`,
     );
@@ -21,8 +20,7 @@ export class StatsWorker {
 
   @OnEvent('session.abandoned')
   async onSessionAbandoned(event: SessionEvent): Promise<void> {
-    const durationMs =
-      event.endedAt.getTime() - event.startedAt.getTime();
+    const durationMs = event.endedAt.getTime() - event.startedAt.getTime();
     this.logger.log(
       `Stats finalising: userId=${event.userId} sessionId=${event.sessionId} durationMs=${durationMs}`,
     );

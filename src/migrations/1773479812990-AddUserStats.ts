@@ -18,7 +18,6 @@ export class AddUserStats1773479812990 implements MigrationInterface {
         CONSTRAINT "UQ_user_stats_userId" UNIQUE ("userId")
       )
     `);
-
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {

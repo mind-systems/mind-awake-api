@@ -25,7 +25,9 @@ export class StatsController {
     type: UserStatsResponseDto,
   })
   @Get('stats')
-  async getStats(@CurrentUser() user: JwtPayload): Promise<UserStatsResponseDto> {
+  async getStats(
+    @CurrentUser() user: JwtPayload,
+  ): Promise<UserStatsResponseDto> {
     return this.statsService.getStats(user.sub);
   }
 }
