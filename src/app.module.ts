@@ -10,6 +10,7 @@ import { HealthController } from './health.controller';
 import { BreathSessionsModule } from './breath-sessions/breath-sessions.module';
 import { DeviceModule } from './device/device.module';
 import { RealtimeModule } from './realtime/realtime.module';
+import { StatsModule } from './stats/stats.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -29,6 +30,7 @@ import { RealtimeModule } from './realtime/realtime.module';
     BreathSessionsModule,
     DeviceModule,
     RealtimeModule,
+    StatsModule,
   ],
   controllers: [HealthController],
 })

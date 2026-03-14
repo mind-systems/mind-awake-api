@@ -104,3 +104,4 @@ Swagger UI is available at `/api/docs` and is disabled in production (`NODE_ENV 
 | Session Lifecycle | `docs/socket/session-lifecycle.md` | States, reconnect, grace period, server restart recovery |
 | Socket Database | `docs/socket/database.md` | live_sessions, session_stream_samples, user_stats schemas |
 | Socket Config | `docs/socket/configuration.md` | WS_* environment variables |
+| User Stats | `docs/stats/stats.md` | GET /users/me/stats endpoint, streak rules, min-duration filter |
