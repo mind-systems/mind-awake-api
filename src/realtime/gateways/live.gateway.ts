@@ -1,4 +1,5 @@
 import { Logger, UseGuards, UsePipes, ValidationPipe } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import {
   ConnectedSocket,
   MessageBody,
@@ -11,6 +12,7 @@ import {
 import { Server, Socket } from 'socket.io';
 import { WsAuthGuard } from '../guards/ws-auth.guard';
 import { WsPayloadSizeGuard } from '../guards/ws-payload-size.guard';
+import { WsRateLimitGuard } from '../guards/ws-rate-limit.guard';
 import { StateStore } from '../state-store';
 import { PresenceService } from '../services/presence.service';
 import { ActivityEngine } from '../services/activity-engine.service';
@@ -20,15 +22,17 @@ import {
   ACTIVITY_START,
   PRESENCE_BACKGROUND,
   PRESENCE_FOREGROUND,
+  SESSION_ERROR,
   SESSION_STATE,
 } from '../events/live.events';
+import { RateLimiterService } from '../services/rate-limiter.service';
 import type { AuthenticatedSocket } from '../interfaces/authenticated-socket.interface';
 import { ActivityStartDto } from '../dto/activity-start.dto';
 
 // cors: true — mobile-only clients (Flutter) don't enforce CORS.
 // Tighten to a specific origin allowlist if a web client is added.
 @WebSocketGateway({ namespace: '/live', cors: true })
-@UseGuards(WsAuthGuard, WsPayloadSizeGuard)
+@UseGuards(WsAuthGuard, WsPayloadSizeGuard, WsRateLimitGuard)
 @UsePipes(new ValidationPipe({ whitelist: true }))
 export class LiveGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private readonly logger = new Logger(LiveGateway.name);
@@ -36,12 +40,21 @@ export class LiveGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server: Server;
 
+  private readonly activityStartLimit: number;
+
   constructor(
     private readonly stateStore: StateStore,
     private readonly presenceService: PresenceService,
     private readonly activityEngine: ActivityEngine,
     private readonly graceTimerManager: GraceTimerManager,
-  ) {}
+    private readonly rateLimiterService: RateLimiterService,
+    configService: ConfigService,
+  ) {
+    this.activityStartLimit = configService.get<number>(
+      'WS_RATE_LIMIT_ACTIVITY_START_PER_MIN',
+      10,
+    );
+  }
 
   handleConnection(client: Socket): void {
     const socket = client as AuthenticatedSocket;
@@ -118,6 +131,7 @@ export class LiveGateway implements OnGatewayConnection, OnGatewayDisconnect {
         });
     }
 
+    this.rateLimiterService.evict(client.id);
     this.logger.log(`Disconnected: userId=${userId} socketId=${client.id}`);
   }
 
@@ -128,6 +142,20 @@ export class LiveGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ): Promise<void> {
     const userId = (client as AuthenticatedSocket).data.userId;
     if (!userId) return;
+
+    const allowed = this.rateLimiterService.consume(
+      `activity-start:${userId}`,
+      this.activityStartLimit,
+      60_000,
+    );
+    if (!allowed) {
+      client.emit(SESSION_ERROR, {
+        code: 'RATE_LIMIT_EXCEEDED',
+        message: 'Too many activity:start requests',
+        timestamp: Date.now(),
+      });
+      return;
+    }
 
     const existing = this.activityEngine.getActiveSession(userId);
     if (existing) {

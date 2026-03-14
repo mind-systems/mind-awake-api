@@ -1,6 +1,7 @@
 import { TelemetryGateway } from './telemetry.gateway';
 import { ActivityEngine } from '../services/activity-engine.service';
 import { StreamEngine } from '../services/stream-engine.service';
+import { RateLimiterService } from '../services/rate-limiter.service';
 import { AuthenticatedSocket } from '../interfaces/authenticated-socket.interface';
 import { ActivityType } from '../enums/activity-type.enum';
 import { DATA_ACK } from '../events/telemetry.events';
@@ -41,6 +42,13 @@ function makeDto(overrides: Partial<DataStreamDto> = {}): DataStreamDto {
   };
 }
 
+function makeRateLimiterService(): jest.Mocked<RateLimiterService> {
+  return {
+    consume: jest.fn().mockReturnValue(true),
+    evict: jest.fn(),
+  } as unknown as jest.Mocked<RateLimiterService>;
+}
+
 describe('TelemetryGateway', () => {
   let gateway: TelemetryGateway;
   let activityEngine: jest.Mocked<ActivityEngine>;
@@ -49,7 +57,11 @@ describe('TelemetryGateway', () => {
   beforeEach(() => {
     activityEngine = makeActivityEngine();
     streamEngine = makeStreamEngine();
-    gateway = new TelemetryGateway(activityEngine, streamEngine);
+    gateway = new TelemetryGateway(
+      activityEngine,
+      streamEngine,
+      makeRateLimiterService(),
+    );
   });
 
   describe('handleConnection', () => {

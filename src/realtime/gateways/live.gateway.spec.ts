@@ -1,13 +1,15 @@
+import { ConfigService } from '@nestjs/config';
 import { LiveGateway } from './live.gateway';
 import { StateStore } from '../state-store';
 import { PresenceService } from '../services/presence.service';
 import { ActivityEngine } from '../services/activity-engine.service';
+import { RateLimiterService } from '../services/rate-limiter.service';
 import { AuthenticatedSocket } from '../interfaces/authenticated-socket.interface';
 import { ActivityType } from '../enums/activity-type.enum';
 import { SessionStatus } from '../enums/session-status.enum';
 import { LiveSession } from '../entities/live-session.entity';
 import { ActivityStartDto } from '../dto/activity-start.dto';
-import { SESSION_STATE } from '../events/live.events';
+import { SESSION_ERROR, SESSION_STATE } from '../events/live.events';
 import { GraceTimerManager } from '../services/grace-timer.service';
 
 function makeSocket(
@@ -47,6 +49,13 @@ describe('LiveGateway — single-connection policy', () => {
   let presenceService: jest.Mocked<PresenceService>;
   let activityEngine: jest.Mocked<ActivityEngine>;
   let graceTimerManager: jest.Mocked<GraceTimerManager>;
+  let rateLimiterService: jest.Mocked<RateLimiterService>;
+
+  function makeConfigService(): ConfigService {
+    return {
+      get: jest.fn().mockReturnValue(undefined),
+    } as unknown as ConfigService;
+  }
 
   beforeEach(() => {
     stateStore = new StateStore();
@@ -61,12 +70,18 @@ describe('LiveGateway — single-connection policy', () => {
     activityEngine.endActivity.mockResolvedValue(null);
     activityEngine.resumeActivity.mockResolvedValue(null);
     graceTimerManager = makeGraceTimerManager();
+    rateLimiterService = {
+      consume: jest.fn().mockReturnValue(true),
+      evict: jest.fn(),
+    } as unknown as jest.Mocked<RateLimiterService>;
 
     gateway = new LiveGateway(
       stateStore,
       presenceService,
       activityEngine,
       graceTimerManager,
+      rateLimiterService,
+      makeConfigService(),
     );
   });
 
@@ -173,6 +188,35 @@ describe('LiveGateway — single-connection policy', () => {
         createdAt: now,
       } as LiveSession;
     }
+
+    it('activity:start throttled — emits SESSION_ERROR with RATE_LIMIT_EXCEEDED', async () => {
+      const client = makeSocket('user-1', 'socket-1');
+      rateLimiterService.consume.mockReturnValue(false);
+      const dto: ActivityStartDto = {
+        activityType: ActivityType.BREATH_SESSION,
+      };
+
+      await gateway.handleActivityStart(client, dto);
+
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(client.emit).toHaveBeenCalledWith(SESSION_ERROR, {
+        code: 'RATE_LIMIT_EXCEEDED',
+        message: expect.any(String),
+        timestamp: expect.any(Number),
+      });
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(activityEngine.startActivity).not.toHaveBeenCalled();
+    });
+
+    it('activity:start throttle persists across reconnect — evict is NOT called for user key on disconnect', () => {
+      const client = makeSocket('user-1', 'socket-1');
+      gateway.handleConnection(client);
+      gateway.handleDisconnect(client);
+
+      const evictCalls = rateLimiterService.evict.mock.calls.map((c) => c[0]);
+      expect(evictCalls).not.toContain('activity-start:user-1');
+      expect(evictCalls).toContain('socket-1');
+    });
 
     it('activity:start — calls startActivity and emits SESSION_STATE with status=active', async () => {
       const client = makeSocket('user-1', 'socket-1');

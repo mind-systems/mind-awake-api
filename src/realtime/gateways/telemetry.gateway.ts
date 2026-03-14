@@ -3,14 +3,17 @@ import {
   ConnectedSocket,
   MessageBody,
   OnGatewayConnection,
+  OnGatewayDisconnect,
   SubscribeMessage,
   WebSocketGateway,
 } from '@nestjs/websockets';
 import { Socket } from 'socket.io';
 import { WsAuthGuard } from '../guards/ws-auth.guard';
 import { WsPayloadSizeGuard } from '../guards/ws-payload-size.guard';
+import { WsRateLimitGuard } from '../guards/ws-rate-limit.guard';
 import { ActivityEngine } from '../services/activity-engine.service';
 import { StreamEngine } from '../services/stream-engine.service';
+import { RateLimiterService } from '../services/rate-limiter.service';
 import { DataStreamDto } from '../dto/data-stream.dto';
 import { DATA_ACK, DATA_STREAM } from '../events/telemetry.events';
 import { SESSION_ERROR } from '../events/live.events';
@@ -19,14 +22,17 @@ import type { AuthenticatedSocket } from '../interfaces/authenticated-socket.int
 // cors: true — mobile-only clients (Flutter) don't enforce CORS.
 // Tighten to a specific origin allowlist if a web client is added.
 @WebSocketGateway({ namespace: '/telemetry', cors: true })
-@UseGuards(WsAuthGuard, WsPayloadSizeGuard)
+@UseGuards(WsAuthGuard, WsPayloadSizeGuard, WsRateLimitGuard)
 @UsePipes(new ValidationPipe({ whitelist: true }))
-export class TelemetryGateway implements OnGatewayConnection {
+export class TelemetryGateway
+  implements OnGatewayConnection, OnGatewayDisconnect
+{
   private readonly logger = new Logger(TelemetryGateway.name);
 
   constructor(
     private readonly activityEngine: ActivityEngine,
     private readonly streamEngine: StreamEngine,
+    private readonly rateLimiterService: RateLimiterService,
   ) {}
 
   handleConnection(client: Socket): void {
@@ -34,6 +40,10 @@ export class TelemetryGateway implements OnGatewayConnection {
     if (!userId) {
       client.disconnect(true);
     }
+  }
+
+  handleDisconnect(client: Socket): void {
+    this.rateLimiterService.evict(client.id);
   }
 
   @SubscribeMessage(DATA_STREAM)
