@@ -98,6 +98,13 @@ export class ActivityEngine {
       return;
     }
 
+    // Guard: if the session was already resumed (ACTIVE) before the grace timer
+    // fired, do not overwrite it — the user reconnected in time.
+    if (session.status !== SessionStatus.DISCONNECTED) {
+      this.stateStore.activityMap.delete(userId);
+      return;
+    }
+
     session.status = SessionStatus.ABANDONED;
     session.endedAt = now;
     const saved = await this.repo.save(session);
@@ -115,5 +122,24 @@ export class ActivityEngine {
 
   getActiveSession(userId: string): ActivityState | undefined {
     return this.stateStore.activityMap.get(userId);
+  }
+
+  async resumeActivity(userId: string): Promise<LiveSession | null> {
+    const state = this.stateStore.activityMap.get(userId);
+    if (!state) return null;
+
+    const session = await this.repo.findOne({ where: { id: state.sessionId } });
+    if (!session) {
+      this.stateStore.activityMap.delete(userId);
+      return null;
+    }
+
+    const now = new Date();
+    session.status = SessionStatus.ACTIVE;
+    session.disconnectedAt = null;
+    session.lastActivityAt = now;
+    const saved = await this.repo.save(session);
+    state.lastActivityAt = now;
+    return saved;
   }
 }

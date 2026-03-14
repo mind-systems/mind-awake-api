@@ -8,6 +8,7 @@ import { SessionStatus } from '../enums/session-status.enum';
 import { LiveSession } from '../entities/live-session.entity';
 import { ActivityStartDto } from '../dto/activity-start.dto';
 import { SESSION_STATE } from '../events/live.events';
+import { GraceTimerManager } from '../services/grace-timer.service';
 
 function makeSocket(
   userId: string | undefined,
@@ -28,7 +29,16 @@ function makeActivityEngine(): jest.Mocked<ActivityEngine> {
     onDisconnect: jest.fn(),
     abandonActivity: jest.fn(),
     getActiveSession: jest.fn(),
+    resumeActivity: jest.fn(),
   } as unknown as jest.Mocked<ActivityEngine>;
+}
+
+function makeGraceTimerManager(): jest.Mocked<GraceTimerManager> {
+  return {
+    startTimer: jest.fn(),
+    cancelTimer: jest.fn(),
+    hasPendingTimer: jest.fn(),
+  } as unknown as jest.Mocked<GraceTimerManager>;
 }
 
 describe('LiveGateway — single-connection policy', () => {
@@ -36,6 +46,7 @@ describe('LiveGateway — single-connection policy', () => {
   let stateStore: StateStore;
   let presenceService: jest.Mocked<PresenceService>;
   let activityEngine: jest.Mocked<ActivityEngine>;
+  let graceTimerManager: jest.Mocked<GraceTimerManager>;
 
   beforeEach(() => {
     stateStore = new StateStore();
@@ -48,8 +59,15 @@ describe('LiveGateway — single-connection policy', () => {
     activityEngine = makeActivityEngine();
     activityEngine.onDisconnect.mockResolvedValue(undefined);
     activityEngine.endActivity.mockResolvedValue(null);
+    activityEngine.resumeActivity.mockResolvedValue(null);
+    graceTimerManager = makeGraceTimerManager();
 
-    gateway = new LiveGateway(stateStore, presenceService, activityEngine);
+    gateway = new LiveGateway(
+      stateStore,
+      presenceService,
+      activityEngine,
+      graceTimerManager,
+    );
   });
 
   it('first connection — registers socket and calls presenceService.online()', () => {
@@ -226,6 +244,81 @@ describe('LiveGateway — single-connection policy', () => {
 
       // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(client.emit).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('reconnect flow', () => {
+    function makeSession(id = 'session-1'): LiveSession {
+      const now = new Date();
+      return {
+        id,
+        userId: 'user-1',
+        activityType: ActivityType.BREATH_SESSION,
+        status: SessionStatus.ACTIVE,
+        startedAt: now,
+        lastActivityAt: now,
+        createdAt: now,
+      } as LiveSession;
+    }
+
+    it('handleConnection with disconnected session — cancels timer, resumes, emits session:state resumed', async () => {
+      const client = makeSocket('user-1', 'socket-1');
+      const session = makeSession();
+      stateStore.activityMap.set('user-1', {
+        sessionId: 'session-1',
+        activityType: ActivityType.BREATH_SESSION,
+        startedAt: new Date(),
+        lastActivityAt: new Date(),
+      });
+      activityEngine.resumeActivity.mockResolvedValue(session);
+
+      gateway.handleConnection(client);
+      // Wait for the async resumeActivity promise (setImmediate drains the microtask + I/O queue)
+      await new Promise<void>((r) => setImmediate(r));
+
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(graceTimerManager.cancelTimer).toHaveBeenCalledWith('user-1');
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(activityEngine.resumeActivity).toHaveBeenCalledWith('user-1');
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(client.emit).toHaveBeenCalledWith(SESSION_STATE, {
+        sessionId: 'session-1',
+        status: 'resumed',
+      });
+    });
+
+    it('handleConnection with no session in activityMap — resumeActivity NOT called', () => {
+      const client = makeSocket('user-1', 'socket-1');
+
+      gateway.handleConnection(client);
+
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(activityEngine.resumeActivity).not.toHaveBeenCalled();
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(graceTimerManager.cancelTimer).not.toHaveBeenCalled();
+    });
+
+    it('handleDisconnect — startTimer called after onDisconnect resolves', async () => {
+      const client = makeSocket('user-1', 'socket-1');
+      gateway.handleConnection(client);
+      activityEngine.onDisconnect.mockResolvedValue(undefined);
+      // Seed activityMap so the timer branch is taken
+      stateStore.activityMap.set('user-1', {
+        sessionId: 'session-1',
+        activityType: ActivityType.BREATH_SESSION,
+        startedAt: new Date(),
+        lastActivityAt: new Date(),
+      });
+
+      gateway.handleDisconnect(client);
+      // Wait for the onDisconnect promise to resolve
+      await new Promise<void>((r) => setImmediate(r));
+
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(graceTimerManager.startTimer).toHaveBeenCalledWith(
+        'user-1',
+        expect.any(Function),
+      );
     });
   });
 });

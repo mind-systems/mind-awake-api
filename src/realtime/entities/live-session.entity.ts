@@ -35,8 +35,8 @@ export class LiveSession {
   @Column()
   startedAt: Date;
 
-  @Column({ nullable: true })
-  disconnectedAt?: Date;
+  @Column({ nullable: true, type: 'timestamptz' })
+  disconnectedAt: Date | null;
 
   @Column({ nullable: true })
   endedAt?: Date;

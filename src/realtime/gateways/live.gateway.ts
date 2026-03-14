@@ -14,6 +14,7 @@ import { WsPayloadSizeGuard } from '../guards/ws-payload-size.guard';
 import { StateStore } from '../state-store';
 import { PresenceService } from '../services/presence.service';
 import { ActivityEngine } from '../services/activity-engine.service';
+import { GraceTimerManager } from '../services/grace-timer.service';
 import {
   ACTIVITY_END,
   ACTIVITY_START,
@@ -39,6 +40,7 @@ export class LiveGateway implements OnGatewayConnection, OnGatewayDisconnect {
     private readonly stateStore: StateStore,
     private readonly presenceService: PresenceService,
     private readonly activityEngine: ActivityEngine,
+    private readonly graceTimerManager: GraceTimerManager,
   ) {}
 
   handleConnection(client: Socket): void {
@@ -59,6 +61,27 @@ export class LiveGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.stateStore.socketMap.set(userId, socket);
     this.presenceService.online(userId, client.id);
     this.logger.log(`Connected: userId=${userId} socketId=${client.id}`);
+
+    // Reconnect: if a disconnected session is pending in activityMap, resume it
+    if (this.stateStore.activityMap.has(userId)) {
+      this.graceTimerManager.cancelTimer(userId);
+      this.activityEngine
+        .resumeActivity(userId)
+        .then((session) => {
+          if (session) {
+            client.emit(SESSION_STATE, {
+              sessionId: session.id,
+              status: 'resumed',
+            });
+            this.logger.log(
+              `Session resumed: userId=${userId} sessionId=${session.id}`,
+            );
+          }
+        })
+        .catch((err: unknown) => {
+          this.logger.error(`Failed to resume session: userId=${userId}`, err);
+        });
+    }
   }
 
   handleDisconnect(client: Socket): void {
@@ -70,9 +93,29 @@ export class LiveGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (stored?.id === client.id) {
       this.stateStore.socketMap.delete(userId);
       this.presenceService.offline(userId);
-      this.activityEngine.onDisconnect(userId).catch((err: unknown) => {
-        this.logger.error(`Failed to record disconnect: userId=${userId}`, err);
-      });
+      this.activityEngine
+        .onDisconnect(userId)
+        .then(() => {
+          // Start grace timer only if the session is still in activityMap
+          if (this.stateStore.activityMap.has(userId)) {
+            this.graceTimerManager.startTimer(userId, () => {
+              this.activityEngine
+                .abandonActivity(userId)
+                .catch((err: unknown) => {
+                  this.logger.error(
+                    `Failed to abandon session after grace: userId=${userId}`,
+                    err,
+                  );
+                });
+            });
+          }
+        })
+        .catch((err: unknown) => {
+          this.logger.error(
+            `Failed to record disconnect: userId=${userId}`,
+            err,
+          );
+        });
     }
 
     this.logger.log(`Disconnected: userId=${userId} socketId=${client.id}`);

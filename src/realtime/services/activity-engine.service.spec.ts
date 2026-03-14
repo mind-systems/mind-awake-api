@@ -139,7 +139,7 @@ describe('ActivityEngine', () => {
 
   describe('abandonActivity', () => {
     it('status=abandoned, endedAt set, removed from activityMap, session.abandoned emitted', async () => {
-      const session = makeSession();
+      const session = makeSession({ status: SessionStatus.DISCONNECTED });
       stateStore.activityMap.set('user-1', {
         sessionId: 'session-1',
         activityType: ActivityType.BREATH_SESSION,
@@ -167,6 +167,23 @@ describe('ActivityEngine', () => {
         }),
       );
     });
+
+    it('no-ops when session status=ACTIVE (reconnect beat the grace timer)', async () => {
+      const session = makeSession({ status: SessionStatus.ACTIVE });
+      stateStore.activityMap.set('user-1', {
+        sessionId: 'session-1',
+        activityType: ActivityType.BREATH_SESSION,
+        startedAt: session.startedAt,
+        lastActivityAt: session.lastActivityAt,
+      });
+      repo.findOne.mockResolvedValue(session);
+
+      await engine.abandonActivity('user-1');
+
+      expect(repo.save).not.toHaveBeenCalled();
+      expect(emitter.emit).not.toHaveBeenCalled();
+      expect(stateStore.activityMap.has('user-1')).toBe(false);
+    });
   });
 
   describe('getActiveSession', () => {
@@ -184,6 +201,59 @@ describe('ActivityEngine', () => {
 
     it('returns undefined when no entry', () => {
       expect(engine.getActiveSession('user-1')).toBeUndefined();
+    });
+  });
+
+  describe('resumeActivity', () => {
+    it('happy path: sets status=ACTIVE, clears disconnectedAt, updates lastActivityAt, returns session', async () => {
+      const session = makeSession({ status: SessionStatus.DISCONNECTED });
+      stateStore.activityMap.set('user-1', {
+        sessionId: 'session-1',
+        activityType: ActivityType.BREATH_SESSION,
+        startedAt: session.startedAt,
+        lastActivityAt: session.lastActivityAt,
+      });
+      repo.findOne.mockResolvedValue(session);
+      const savedSession = {
+        ...session,
+        status: SessionStatus.ACTIVE,
+        disconnectedAt: null,
+      };
+      repo.save.mockResolvedValue(savedSession);
+
+      const result = await engine.resumeActivity('user-1');
+
+      expect(result).toBe(savedSession);
+      expect(session.status).toBe(SessionStatus.ACTIVE);
+      expect(session.disconnectedAt).toBeNull();
+      expect(session.lastActivityAt).toEqual(expect.any(Date));
+      expect(repo.save).toHaveBeenCalledWith(session);
+      // activityMap entry should have lastActivityAt synced
+      expect(stateStore.activityMap.get('user-1')?.lastActivityAt).toEqual(
+        session.lastActivityAt,
+      );
+    });
+
+    it('returns null when no activityMap entry', async () => {
+      const result = await engine.resumeActivity('user-1');
+
+      expect(result).toBeNull();
+      expect(repo.findOne).not.toHaveBeenCalled();
+    });
+
+    it('returns null and cleans activityMap when session not in DB', async () => {
+      stateStore.activityMap.set('user-1', {
+        sessionId: 'session-1',
+        activityType: ActivityType.BREATH_SESSION,
+        startedAt: new Date(),
+        lastActivityAt: new Date(),
+      });
+      repo.findOne.mockResolvedValue(null);
+
+      const result = await engine.resumeActivity('user-1');
+
+      expect(result).toBeNull();
+      expect(stateStore.activityMap.has('user-1')).toBe(false);
     });
   });
 });
