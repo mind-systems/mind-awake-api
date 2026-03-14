@@ -12,6 +12,7 @@ import { StreamEngine } from './services/stream-engine.service';
 import { TelemetryGateway } from './gateways/telemetry.gateway';
 import { RateLimiterService } from './services/rate-limiter.service';
 import { WsRateLimitGuard } from './guards/ws-rate-limit.guard';
+import { ObservabilityService } from './services/observability.service';
 import { LiveSession } from './entities/live-session.entity';
 import { SessionStreamSample } from './entities/session-stream-sample.entity';
 
@@ -32,6 +33,7 @@ import { SessionStreamSample } from './entities/session-stream-sample.entity';
     GraceTimerManager,
     StartupRecoveryService,
     StreamEngine,
+    ObservabilityService,
   ],
   exports: [StateStore, PresenceService],
 })

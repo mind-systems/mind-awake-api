@@ -40,6 +40,7 @@ export class LiveGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server: Server;
 
+  private readonly connectedAt = new Map<string, number>();
   private readonly activityStartLimit: number;
 
   constructor(
@@ -72,6 +73,7 @@ export class LiveGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
 
     this.stateStore.socketMap.set(userId, socket);
+    this.connectedAt.set(client.id, Date.now());
     this.presenceService.online(userId, client.id);
     this.logger.log(`Connected: userId=${userId} socketId=${client.id}`);
 
@@ -112,6 +114,7 @@ export class LiveGateway implements OnGatewayConnection, OnGatewayDisconnect {
           // Start grace timer only if the session is still in activityMap
           if (this.stateStore.activityMap.has(userId)) {
             this.graceTimerManager.startTimer(userId, () => {
+              this.logger.log(`Grace expired: userId=${userId} — abandoning session`);
               this.activityEngine
                 .abandonActivity(userId)
                 .catch((err: unknown) => {
@@ -131,8 +134,12 @@ export class LiveGateway implements OnGatewayConnection, OnGatewayDisconnect {
         });
     }
 
+    const connectedDurationMs = Date.now() - (this.connectedAt.get(client.id) ?? Date.now());
+    this.connectedAt.delete(client.id);
     this.rateLimiterService.evict(client.id);
-    this.logger.log(`Disconnected: userId=${userId} socketId=${client.id}`);
+    this.logger.log(
+      `Disconnected: userId=${userId} socketId=${client.id} connectedDurationMs=${connectedDurationMs}`,
+    );
   }
 
   @SubscribeMessage(ACTIVITY_START)

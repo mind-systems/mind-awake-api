@@ -17,6 +17,7 @@ async function bootstrap() {
   const logger = WinstonModule.createLogger({
     transports: [
       new winston.transports.Console({
+        level: process.env.LOG_LEVEL ?? 'info',
         format: isProd
           ? winston.format.json()
           : winston.format.combine(

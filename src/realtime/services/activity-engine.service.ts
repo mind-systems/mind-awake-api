@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -11,6 +11,8 @@ import { ActivityType } from '../enums/activity-type.enum';
 
 @Injectable()
 export class ActivityEngine {
+  private readonly logger = new Logger(ActivityEngine.name);
+
   constructor(
     @InjectRepository(LiveSession)
     private readonly repo: Repository<LiveSession>,
@@ -43,6 +45,9 @@ export class ActivityEngine {
       lastActivityAt: saved.lastActivityAt,
     };
     this.stateStore.activityMap.set(userId, state);
+    this.logger.log(
+      `Session started: userId=${userId} sessionId=${saved.id} activityType=${saved.activityType}`,
+    );
 
     return saved;
   }
@@ -63,6 +68,9 @@ export class ActivityEngine {
     const saved = await this.repo.save(session);
 
     this.stateStore.activityMap.delete(userId);
+    this.logger.log(
+      `Session ended: userId=${userId} sessionId=${saved.id} durationMs=${saved.endedAt ? saved.endedAt.getTime() - saved.startedAt.getTime() : 0}`,
+    );
 
     this.eventEmitter.emit('session.completed', {
       sessionId: saved.id,
@@ -84,6 +92,9 @@ export class ActivityEngine {
       status: SessionStatus.DISCONNECTED,
       disconnectedAt: now,
     });
+    this.logger.log(
+      `Session disconnected: userId=${userId} sessionId=${state.sessionId}`,
+    );
     // Entry stays in activityMap — Phase D handles grace timer + abandon
   }
 
@@ -110,6 +121,9 @@ export class ActivityEngine {
     const saved = await this.repo.save(session);
 
     this.stateStore.activityMap.delete(userId);
+    this.logger.log(
+      `Session abandoned: userId=${userId} sessionId=${saved.id} durationMs=${saved.endedAt ? saved.endedAt.getTime() - saved.startedAt.getTime() : 0}`,
+    );
 
     this.eventEmitter.emit('session.abandoned', {
       sessionId: saved.id,
@@ -135,11 +149,17 @@ export class ActivityEngine {
     }
 
     const now = new Date();
+    const downtimeMs = session.disconnectedAt
+      ? now.getTime() - session.disconnectedAt.getTime()
+      : 0;
     session.status = SessionStatus.ACTIVE;
     session.disconnectedAt = null;
     session.lastActivityAt = now;
     const saved = await this.repo.save(session);
     state.lastActivityAt = now;
+    this.logger.log(
+      `Session resumed: userId=${userId} sessionId=${saved.id} downtimeMs=${downtimeMs}`,
+    );
     return saved;
   }
 }
