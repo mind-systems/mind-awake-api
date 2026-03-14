@@ -1,4 +1,4 @@
-export interface TelemetrySample {
+export interface TelemetrySample extends Record<string, unknown> {
   timestamp: number;
   data: unknown;
 }

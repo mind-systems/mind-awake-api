@@ -1,10 +1,15 @@
 import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { WsException } from '@nestjs/websockets';
-
-const MAX_PAYLOAD_BYTES = 65536;
 
 @Injectable()
 export class WsPayloadSizeGuard implements CanActivate {
+  private readonly maxPayloadBytes: number;
+
+  constructor(configService: ConfigService) {
+    this.maxPayloadBytes = configService.get<number>('WS_MAX_PAYLOAD_BYTES', 65536);
+  }
+
   canActivate(context: ExecutionContext): boolean {
     const wsContext = context.switchToWs();
     const payload: unknown = wsContext.getData();
@@ -14,9 +19,9 @@ export class WsPayloadSizeGuard implements CanActivate {
     } catch {
       throw new WsException('Payload is not serializable');
     }
-    if (size > MAX_PAYLOAD_BYTES) {
+    if (size > this.maxPayloadBytes) {
       throw new WsException(
-        `Payload too large (${size} bytes, max ${MAX_PAYLOAD_BYTES})`,
+        `Payload too large (${size} bytes, max ${this.maxPayloadBytes})`,
       );
     }
     return true;

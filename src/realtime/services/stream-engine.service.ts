@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
+import { Injectable, Logger, OnApplicationBootstrap, OnApplicationShutdown } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
@@ -17,12 +17,13 @@ export interface PushResult {
 }
 
 @Injectable()
-export class StreamEngine implements OnApplicationBootstrap {
+export class StreamEngine implements OnApplicationBootstrap, OnApplicationShutdown {
   private readonly logger = new Logger(StreamEngine.name);
   private readonly buffers = new Map<string, SessionBuffer>();
   private readonly maxBufferBytes: number;
   private readonly maxSessions: number;
   private readonly _maxSamplesPerSecond: number;
+  private readonly flushIntervalMs: number;
   private flushTimer: ReturnType<typeof setInterval> | undefined;
 
   constructor(
@@ -44,6 +45,10 @@ export class StreamEngine implements OnApplicationBootstrap {
       'WS_BACKPRESSURE_SAMPLES_PER_SEC',
       50,
     );
+    this.flushIntervalMs = this.configService.get<number>(
+      'WS_STREAM_FLUSH_INTERVAL_MS',
+      5000,
+    );
   }
 
   get maxSamplesPerSecond(): number {
@@ -55,13 +60,14 @@ export class StreamEngine implements OnApplicationBootstrap {
       this.flushAll().catch((err: unknown) => {
         this.logger.error('Periodic flush failed', err);
       });
-    }, 5000);
+    }, this.flushIntervalMs);
   }
 
-  onApplicationShutdown(): void {
+  async onApplicationShutdown(): Promise<void> {
     if (this.flushTimer !== undefined) {
       clearInterval(this.flushTimer);
     }
+    await this.flushAll();
   }
 
   push(sessionId: string, sample: TelemetrySample): PushResult {
@@ -106,7 +112,7 @@ export class StreamEngine implements OnApplicationBootstrap {
     await this.sampleRepo.save(
       this.sampleRepo.create({
         liveSessionId: sessionId,
-        samples: samples as unknown as Record<string, unknown>[],
+        samples,
         flushedAt: now,
       }),
     );

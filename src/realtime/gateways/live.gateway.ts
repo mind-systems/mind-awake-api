@@ -42,6 +42,7 @@ export class LiveGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   private readonly connectedAt = new Map<string, number>();
   private readonly activityStartLimit: number;
+  private readonly rateLimitWindowMs: number;
 
   constructor(
     private readonly stateStore: StateStore,
@@ -54,6 +55,10 @@ export class LiveGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.activityStartLimit = configService.get<number>(
       'WS_RATE_LIMIT_ACTIVITY_START_PER_MIN',
       10,
+    );
+    this.rateLimitWindowMs = configService.get<number>(
+      'WS_RATE_LIMIT_WINDOW_MS',
+      60_000,
     );
   }
 
@@ -153,7 +158,7 @@ export class LiveGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const allowed = this.rateLimiterService.consume(
       `activity-start:${userId}`,
       this.activityStartLimit,
-      60_000,
+      this.rateLimitWindowMs,
     );
     if (!allowed) {
       client.emit(SESSION_ERROR, {

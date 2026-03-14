@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { ConfigService } from '@nestjs/config';
 import { UserStats } from './entities/user-stats.entity';
 import { UserStatsResponseDto } from './dto/user-stats-response.dto';
 
@@ -15,24 +16,27 @@ export interface SessionEvent {
 export class StatsService {
   private readonly logger = new Logger(StatsService.name);
 
+  private readonly minSessionDurationS: number;
+
   constructor(
     @InjectRepository(UserStats)
     private readonly repo: Repository<UserStats>,
-  ) {}
+    private readonly configService: ConfigService,
+  ) {
+    this.minSessionDurationS = this.configService.get<number>(
+      'WS_MIN_SESSION_DURATION_S',
+      10,
+    );
+  }
 
   async finalise(event: SessionEvent): Promise<void> {
     const durationSeconds = Math.floor(
       (event.endedAt.getTime() - event.startedAt.getTime()) / 1000,
     );
 
-    const minDuration = parseInt(
-      process.env.WS_MIN_SESSION_DURATION_S ?? '10',
-      10,
-    );
-
-    if (durationSeconds < minDuration) {
+    if (durationSeconds < this.minSessionDurationS) {
       this.logger.log(
-        `Stats skipped: userId=${event.userId} sessionId=${event.sessionId} durationSeconds=${durationSeconds} (below min ${minDuration}s)`,
+        `Stats skipped: userId=${event.userId} sessionId=${event.sessionId} durationSeconds=${durationSeconds} (below min ${this.minSessionDurationS}s)`,
       );
       return;
     }
