@@ -1,7 +1,13 @@
 import { LiveGateway } from './live.gateway';
 import { StateStore } from '../state-store';
 import { PresenceService } from '../services/presence.service';
+import { ActivityEngine } from '../services/activity-engine.service';
 import { AuthenticatedSocket } from '../interfaces/authenticated-socket.interface';
+import { ActivityType } from '../enums/activity-type.enum';
+import { SessionStatus } from '../enums/session-status.enum';
+import { LiveSession } from '../entities/live-session.entity';
+import { ActivityStartDto } from '../dto/activity-start.dto';
+import { SESSION_STATE } from '../events/live.events';
 
 function makeSocket(
   userId: string | undefined,
@@ -11,13 +17,25 @@ function makeSocket(
     id,
     data: { userId: userId as string },
     disconnect: jest.fn(),
+    emit: jest.fn(),
   } as unknown as AuthenticatedSocket;
+}
+
+function makeActivityEngine(): jest.Mocked<ActivityEngine> {
+  return {
+    startActivity: jest.fn(),
+    endActivity: jest.fn(),
+    onDisconnect: jest.fn(),
+    abandonActivity: jest.fn(),
+    getActiveSession: jest.fn(),
+  } as unknown as jest.Mocked<ActivityEngine>;
 }
 
 describe('LiveGateway — single-connection policy', () => {
   let gateway: LiveGateway;
   let stateStore: StateStore;
   let presenceService: jest.Mocked<PresenceService>;
+  let activityEngine: jest.Mocked<ActivityEngine>;
 
   beforeEach(() => {
     stateStore = new StateStore();
@@ -27,8 +45,11 @@ describe('LiveGateway — single-connection policy', () => {
       foreground: jest.fn(),
       offline: jest.fn(),
     } as unknown as jest.Mocked<PresenceService>;
+    activityEngine = makeActivityEngine();
+    activityEngine.onDisconnect.mockResolvedValue(undefined);
+    activityEngine.endActivity.mockResolvedValue(null);
 
-    gateway = new LiveGateway(stateStore, presenceService);
+    gateway = new LiveGateway(stateStore, presenceService, activityEngine);
   });
 
   it('first connection — registers socket and calls presenceService.online()', () => {
@@ -64,6 +85,17 @@ describe('LiveGateway — single-connection policy', () => {
     expect(stateStore.socketMap.has('user-1')).toBe(false);
     // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(presenceService.offline).toHaveBeenCalledWith('user-1');
+  });
+
+  it('handleDisconnect matching socketId — calls ActivityEngine.onDisconnect()', () => {
+    const client = makeSocket('user-1', 'socket-1');
+    activityEngine.onDisconnect.mockResolvedValue(undefined);
+    gateway.handleConnection(client);
+
+    gateway.handleDisconnect(client);
+
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    expect(activityEngine.onDisconnect).toHaveBeenCalledWith('user-1');
   });
 
   it('handleDisconnect non-matching socketId (evicted socket) — does NOT clear socketMap, does NOT call offline()', () => {
@@ -107,6 +139,93 @@ describe('LiveGateway — single-connection policy', () => {
       expect(() => gateway.handleBackground(client)).not.toThrow();
       // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(presenceService.background).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('activity event handlers', () => {
+    function makeSession(id = 'session-1'): LiveSession {
+      const now = new Date();
+      return {
+        id,
+        userId: 'user-1',
+        activityType: ActivityType.BREATH_SESSION,
+        status: SessionStatus.ACTIVE,
+        startedAt: now,
+        lastActivityAt: now,
+        createdAt: now,
+      } as LiveSession;
+    }
+
+    it('activity:start — calls startActivity and emits SESSION_STATE with status=active', async () => {
+      const client = makeSocket('user-1', 'socket-1');
+      const session = makeSession();
+      activityEngine.getActiveSession.mockReturnValue(undefined);
+      activityEngine.startActivity.mockResolvedValue(session);
+      const dto: ActivityStartDto = {
+        activityType: ActivityType.BREATH_SESSION,
+      };
+
+      await gateway.handleActivityStart(client, dto);
+
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(activityEngine.startActivity).toHaveBeenCalledWith('user-1', dto);
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(client.emit).toHaveBeenCalledWith(SESSION_STATE, {
+        sessionId: 'session-1',
+        status: 'active',
+      });
+    });
+
+    it('activity:start when session already active — startActivity NOT called, SESSION_STATE emitted with existing sessionId', async () => {
+      const client = makeSocket('user-1', 'socket-1');
+      activityEngine.getActiveSession.mockReturnValue({
+        sessionId: 'existing-session',
+        activityType: ActivityType.BREATH_SESSION,
+        startedAt: new Date(),
+        lastActivityAt: new Date(),
+      });
+      const dto: ActivityStartDto = {
+        activityType: ActivityType.BREATH_SESSION,
+      };
+
+      await gateway.handleActivityStart(client, dto);
+
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(activityEngine.startActivity).not.toHaveBeenCalled();
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(client.emit).toHaveBeenCalledWith(SESSION_STATE, {
+        sessionId: 'existing-session',
+        status: 'active',
+      });
+    });
+
+    it('activity:end with active session — endActivity called, SESSION_STATE with completed emitted', async () => {
+      const client = makeSocket('user-1', 'socket-1');
+      const session = makeSession();
+      activityEngine.endActivity.mockResolvedValue({
+        ...session,
+        status: SessionStatus.COMPLETED,
+      });
+
+      await gateway.handleActivityEnd(client);
+
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(activityEngine.endActivity).toHaveBeenCalledWith('user-1');
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(client.emit).toHaveBeenCalledWith(SESSION_STATE, {
+        sessionId: 'session-1',
+        status: 'completed',
+      });
+    });
+
+    it('activity:end with no session — no emit', async () => {
+      const client = makeSocket('user-1', 'socket-1');
+      activityEngine.endActivity.mockResolvedValue(null);
+
+      await gateway.handleActivityEnd(client);
+
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(client.emit).not.toHaveBeenCalled();
     });
   });
 });
