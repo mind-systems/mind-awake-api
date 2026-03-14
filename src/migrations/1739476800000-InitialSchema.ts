@@ -26,7 +26,9 @@ export class InitialSchema1739476800000 implements MigrationInterface {
         CONSTRAINT "UQ_users_email" UNIQUE ("email")
       )
     `);
-    await queryRunner.query(`CREATE INDEX "IDX_users_email" ON "users" ("email")`);
+    await queryRunner.query(
+      `CREATE INDEX "IDX_users_email" ON "users" ("email")`,
+    );
 
     // Table: auth_codes
     await queryRunner.query(`
@@ -40,9 +42,15 @@ export class InitialSchema1739476800000 implements MigrationInterface {
         CONSTRAINT "PK_auth_codes_id" PRIMARY KEY ("id")
       )
     `);
-    await queryRunner.query(`CREATE INDEX "IDX_auth_codes_email"     ON "auth_codes" ("email")`);
-    await queryRunner.query(`CREATE INDEX "IDX_auth_codes_code_hash" ON "auth_codes" ("codeHash")`);
-    await queryRunner.query(`CREATE INDEX "IDX_auth_codes_expires_at" ON "auth_codes" ("expiresAt")`);
+    await queryRunner.query(
+      `CREATE INDEX "IDX_auth_codes_email"     ON "auth_codes" ("email")`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_auth_codes_code_hash" ON "auth_codes" ("codeHash")`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_auth_codes_expires_at" ON "auth_codes" ("expiresAt")`,
+    );
 
     // Table: user_sessions
     await queryRunner.query(`
@@ -58,8 +66,12 @@ export class InitialSchema1739476800000 implements MigrationInterface {
           FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE
       )
     `);
-    await queryRunner.query(`CREATE INDEX "IDX_user_sessions_tokenHash" ON "user_sessions" ("tokenHash")`);
-    await queryRunner.query(`CREATE INDEX "IDX_user_sessions_userId"    ON "user_sessions" ("userId")`);
+    await queryRunner.query(
+      `CREATE INDEX "IDX_user_sessions_tokenHash" ON "user_sessions" ("tokenHash")`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_user_sessions_userId"    ON "user_sessions" ("userId")`,
+    );
 
     // Table: devices
     await queryRunner.query(`
@@ -82,7 +94,9 @@ export class InitialSchema1739476800000 implements MigrationInterface {
         CONSTRAINT "UQ_devices_installation_id" UNIQUE ("installation_id")
       )
     `);
-    await queryRunner.query(`CREATE INDEX "IDX_devices_last_seen_at" ON "devices" ("last_seen_at" DESC)`);
+    await queryRunner.query(
+      `CREATE INDEX "IDX_devices_last_seen_at" ON "devices" ("last_seen_at" DESC)`,
+    );
 
     // Table: breath_sessions
     await queryRunner.query(`
@@ -100,11 +114,21 @@ export class InitialSchema1739476800000 implements MigrationInterface {
           FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE
       )
     `);
-    await queryRunner.query(`CREATE INDEX "IDX_breath_sessions_userId"           ON "breath_sessions" ("userId")`);
-    await queryRunner.query(`CREATE INDEX "IDX_breath_sessions_shared"           ON "breath_sessions" ("shared")`);
-    await queryRunner.query(`CREATE INDEX "IDX_breath_sessions_createdAt"        ON "breath_sessions" ("createdAt" DESC)`);
-    await queryRunner.query(`CREATE INDEX "IDX_breath_sessions_userId_createdAt" ON "breath_sessions" ("userId", "createdAt" DESC)`);
-    await queryRunner.query(`CREATE INDEX "IDX_breath_sessions_shared_createdAt" ON "breath_sessions" ("shared", "createdAt" DESC)`);
+    await queryRunner.query(
+      `CREATE INDEX "IDX_breath_sessions_userId"           ON "breath_sessions" ("userId")`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_breath_sessions_shared"           ON "breath_sessions" ("shared")`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_breath_sessions_createdAt"        ON "breath_sessions" ("createdAt" DESC)`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_breath_sessions_userId_createdAt" ON "breath_sessions" ("userId", "createdAt" DESC)`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_breath_sessions_shared_createdAt" ON "breath_sessions" ("shared", "createdAt" DESC)`,
+    );
 
     // Trigger: keep updatedAt in sync for breath_sessions
     await queryRunner.query(`
@@ -139,13 +163,19 @@ export class InitialSchema1739476800000 implements MigrationInterface {
           FOREIGN KEY ("sessionId") REFERENCES "breath_sessions"("id") ON DELETE CASCADE
       )
     `);
-    await queryRunner.query(`CREATE INDEX "IDX_breath_session_settings_userId_starred" ON "breath_session_settings" ("userId", "starred")`);
+    await queryRunner.query(
+      `CREATE INDEX "IDX_breath_session_settings_userId_starred" ON "breath_session_settings" ("userId", "starred")`,
+    );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`DROP TABLE IF EXISTS "breath_session_settings"`);
-    await queryRunner.query(`DROP TRIGGER IF EXISTS update_breath_sessions_updated_at ON "breath_sessions"`);
-    await queryRunner.query(`DROP FUNCTION IF EXISTS update_updated_at_column()`);
+    await queryRunner.query(
+      `DROP TRIGGER IF EXISTS update_breath_sessions_updated_at ON "breath_sessions"`,
+    );
+    await queryRunner.query(
+      `DROP FUNCTION IF EXISTS update_updated_at_column()`,
+    );
     await queryRunner.query(`DROP TABLE IF EXISTS "breath_sessions"`);
     await queryRunner.query(`DROP TABLE IF EXISTS "devices"`);
     await queryRunner.query(`DROP TABLE IF EXISTS "user_sessions"`);

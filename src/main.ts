@@ -17,16 +17,16 @@ async function bootstrap() {
   const logger = WinstonModule.createLogger({
     transports: [
       new winston.transports.Console({
-        format: isProd ?
-          winston.format.json()
+        format: isProd
+          ? winston.format.json()
           : winston.format.combine(
-            winston.format.timestamp(),
-            winston.format.ms(),
-            nestWinstonModuleUtilities.format.nestLike('MindAwakeAPI', {
-              colors: true,
-              prettyPrint: true,
-            }),
-          ),
+              winston.format.timestamp(),
+              winston.format.ms(),
+              nestWinstonModuleUtilities.format.nestLike('MindAwakeAPI', {
+                colors: true,
+                prettyPrint: true,
+              }),
+            ),
       }),
       new DailyRotateFile({
         filename: 'logs/error-%DATE%.log',

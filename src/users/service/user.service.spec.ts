@@ -37,7 +37,9 @@ describe('UserService', () => {
 
       const result = await service.updateProfile('user-uuid', dto);
 
-      expect(userRepository.findOne).toHaveBeenCalledWith({ where: { id: 'user-uuid' } });
+      expect(userRepository.findOne).toHaveBeenCalledWith({
+        where: { id: 'user-uuid' },
+      });
       expect(userRepository.save).toHaveBeenCalled();
       expect(result.name).toBe('New Name');
       expect(result.language).toBe('ru');
@@ -46,9 +48,9 @@ describe('UserService', () => {
     it('throws NotFoundException when user does not exist', async () => {
       userRepository.findOne.mockResolvedValue(null);
 
-      await expect(service.updateProfile('missing-uuid', { name: 'X' })).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        service.updateProfile('missing-uuid', { name: 'X' }),
+      ).rejects.toThrow(NotFoundException);
 
       expect(userRepository.save).not.toHaveBeenCalled();
     });

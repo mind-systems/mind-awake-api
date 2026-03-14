@@ -1,4 +1,14 @@
-import { IsString, IsBoolean, IsArray, ValidateNested, IsNumber, IsEnum, IsOptional, Min, IsNotEmpty } from 'class-validator';
+import {
+  IsString,
+  IsBoolean,
+  IsArray,
+  ValidateNested,
+  IsNumber,
+  IsEnum,
+  IsOptional,
+  Min,
+  IsNotEmpty,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { BreathSession } from '../entities/breath-session.entity';
@@ -104,7 +114,11 @@ export class ListQueryDto {
 }
 
 export class BreathSessionWithStarredDto extends BreathSession {
-  @ApiPropertyOptional({ example: false, description: 'Whether the current user has starred this session (present only when authenticated)' })
+  @ApiPropertyOptional({
+    example: false,
+    description:
+      'Whether the current user has starred this session (present only when authenticated)',
+  })
   isStarred?: boolean;
 }
 

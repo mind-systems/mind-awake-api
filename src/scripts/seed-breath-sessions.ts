@@ -10,7 +10,14 @@ import 'reflect-metadata';
 import { config } from 'dotenv';
 import * as path from 'path';
 import * as fs from 'fs';
-import { DataSource, Entity, PrimaryGeneratedColumn, Column, UpdateDateColumn, Index } from 'typeorm';
+import {
+  DataSource,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  UpdateDateColumn,
+  Index,
+} from 'typeorm';
 
 // 1. Load env
 const envFile = process.env.envFile || '.env';
@@ -89,7 +96,9 @@ async function main() {
 
     await repo.insert(records);
 
-    console.log(`Inserted ${records.length} breath sessions for userId=${userId}`);
+    console.log(
+      `Inserted ${records.length} breath sessions for userId=${userId}`,
+    );
   } finally {
     await AppDataSource.destroy();
   }

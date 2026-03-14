@@ -6,7 +6,10 @@ export class DevicePingDto {
   @IsString()
   installationId: string;
 
-  @ApiProperty({ example: 'ios', description: 'Platform identifier (e.g. ios, android)' })
+  @ApiProperty({
+    example: 'ios',
+    description: 'Platform identifier (e.g. ios, android)',
+  })
   @IsString()
   platform: string;
 

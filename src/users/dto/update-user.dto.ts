@@ -9,7 +9,11 @@ export class UpdateUserDto {
   @IsOptional()
   name?: string;
 
-  @ApiPropertyOptional({ enum: SUPPORTED_LOCALES, example: 'ru', description: 'UI language selection' })
+  @ApiPropertyOptional({
+    enum: SUPPORTED_LOCALES,
+    example: 'ru',
+    description: 'UI language selection',
+  })
   @IsIn(SUPPORTED_LOCALES)
   @IsOptional()
   language?: string;

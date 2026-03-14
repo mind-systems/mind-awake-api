@@ -33,14 +33,20 @@ describe('BreathSessionsService', () => {
 
     beforeEach(() => {
       repository = {
-        create: jest.fn((data: any) => Object.assign(new BreathSession(), data)),
+        create: jest.fn((data: any) =>
+          Object.assign(new BreathSession(), data),
+        ),
         save: jest.fn((entity: any) => Promise.resolve(entity)),
       };
       service = new BreathSessionsService(repository, {} as any);
     });
 
     it('computes complexity from exercises', async () => {
-      const dto = { description: 'Test', exercises: sampleExercises, shared: false };
+      const dto = {
+        description: 'Test',
+        exercises: sampleExercises,
+        shared: false,
+      };
       const result = await service.create('user-uuid', dto);
 
       // (4+4)*3 = 24
@@ -71,7 +77,9 @@ describe('BreathSessionsService', () => {
       const existing = makeSession({ complexity: 0 });
       repository.findOne.mockResolvedValue(existing);
 
-      const result = await service.update('session-uuid', 'user-uuid', { exercises: sampleExercises });
+      const result = await service.update('session-uuid', 'user-uuid', {
+        exercises: sampleExercises,
+      });
 
       expect(result.complexity).toBe(24);
     });
@@ -80,7 +88,9 @@ describe('BreathSessionsService', () => {
       const existing = makeSession({ complexity: 42 });
       repository.findOne.mockResolvedValue(existing);
 
-      const result = await service.update('session-uuid', 'user-uuid', { description: 'New desc' });
+      const result = await service.update('session-uuid', 'user-uuid', {
+        description: 'New desc',
+      });
 
       expect(result.complexity).toBe(42);
     });
@@ -102,7 +112,11 @@ describe('BreathSessionsService', () => {
       const existing = makeSession({ complexity: 0 });
       repository.findOne.mockResolvedValue(existing);
 
-      const dto = { description: 'Replaced', exercises: sampleExercises, shared: true };
+      const dto = {
+        description: 'Replaced',
+        exercises: sampleExercises,
+        shared: true,
+      };
       const result = await service.replace('session-uuid', 'user-uuid', dto);
 
       expect(result.complexity).toBe(24);
@@ -112,7 +126,9 @@ describe('BreathSessionsService', () => {
   describe('findList', () => {
     let service: BreathSessionsService;
     let repository: jest.Mocked<any>;
-    let settingsService: jest.Mocked<Pick<BreathSessionSettingsService, 'findByUserAndSessions'>>;
+    let settingsService: jest.Mocked<
+      Pick<BreathSessionSettingsService, 'findByUserAndSessions'>
+    >;
 
     beforeEach(() => {
       settingsService = {
@@ -129,8 +145,16 @@ describe('BreathSessionsService', () => {
 
     describe('anonymous path (userId = null)', () => {
       it('returns only shared sessions ordered by createdAt DESC', async () => {
-        const newer = makeSession({ id: 'a', shared: true, createdAt: new Date('2026-02-01T00:00:00Z') });
-        const older = makeSession({ id: 'b', shared: true, createdAt: new Date('2026-01-01T00:00:00Z') });
+        const newer = makeSession({
+          id: 'a',
+          shared: true,
+          createdAt: new Date('2026-02-01T00:00:00Z'),
+        });
+        const older = makeSession({
+          id: 'b',
+          shared: true,
+          createdAt: new Date('2026-01-01T00:00:00Z'),
+        });
 
         repository.findAndCount.mockResolvedValue([[newer, older], 2]);
 
@@ -194,8 +218,18 @@ describe('BreathSessionsService', () => {
       });
 
       it('own sessions (group 0) appear before starred-others (group 1)', async () => {
-        const own = makeSession({ id: 'own', userId: 'user-uuid', shared: true, createdAt: new Date('2026-01-01') });
-        const starred = makeSession({ id: 'starred', userId: 'other-uuid', shared: true, createdAt: new Date('2026-02-01') });
+        const own = makeSession({
+          id: 'own',
+          userId: 'user-uuid',
+          shared: true,
+          createdAt: new Date('2026-01-01'),
+        });
+        const starred = makeSession({
+          id: 'starred',
+          userId: 'other-uuid',
+          shared: true,
+          createdAt: new Date('2026-02-01'),
+        });
 
         // Service returns them in the order the DB returns them; DB orders by group_priority ASC
         // Simulate DB returning own first (group 0), starred second (group 1)
@@ -209,8 +243,16 @@ describe('BreathSessionsService', () => {
       });
 
       it('within same group, newer createdAt appears first', async () => {
-        const newerOwn = makeSession({ id: 'newer', userId: 'user-uuid', createdAt: new Date('2026-03-01') });
-        const olderOwn = makeSession({ id: 'older', userId: 'user-uuid', createdAt: new Date('2026-01-01') });
+        const newerOwn = makeSession({
+          id: 'newer',
+          userId: 'user-uuid',
+          createdAt: new Date('2026-03-01'),
+        });
+        const olderOwn = makeSession({
+          id: 'older',
+          userId: 'user-uuid',
+          createdAt: new Date('2026-01-01'),
+        });
 
         // DB returns them newer-first within the same group (createdAt DESC)
         const qb = makeQb([newerOwn, olderOwn], 2);

@@ -2,12 +2,19 @@ import { Logger, UseGuards } from '@nestjs/common';
 import {
   OnGatewayConnection,
   OnGatewayDisconnect,
+  SubscribeMessage,
   WebSocketGateway,
   WebSocketServer,
 } from '@nestjs/websockets';
-import { Server, Socket } from 'socket.io';
+import { Server } from 'socket.io';
 import { WsAuthGuard } from '../guards/ws-auth.guard';
 import { StateStore } from '../state-store';
+import { PresenceService } from '../services/presence.service';
+import {
+  PRESENCE_BACKGROUND,
+  PRESENCE_FOREGROUND,
+} from '../events/live.events';
+import { AuthenticatedSocket } from '../interfaces/authenticated-socket.interface';
 
 // cors: true — mobile-only clients (Flutter) don't enforce CORS.
 // Tighten to a specific origin allowlist if a web client is added.
@@ -19,10 +26,13 @@ export class LiveGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server: Server;
 
-  constructor(private readonly stateStore: StateStore) {}
+  constructor(
+    private readonly stateStore: StateStore,
+    private readonly presenceService: PresenceService,
+  ) {}
 
-  handleConnection(client: Socket): void {
-    const userId = client.data?.userId;
+  handleConnection(client: AuthenticatedSocket): void {
+    const userId = client.data.userId;
 
     if (!userId) {
       client.disconnect(true);
@@ -36,18 +46,37 @@ export class LiveGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
 
     this.stateStore.socketMap.set(userId, client);
+    this.presenceService.online(userId, client.id);
     this.logger.log(`Connected: userId=${userId} socketId=${client.id}`);
   }
 
-  handleDisconnect(client: Socket): void {
-    const userId = client.data?.userId;
+  handleDisconnect(client: AuthenticatedSocket): void {
+    const userId = client.data.userId;
     if (!userId) return;
 
     const stored = this.stateStore.socketMap.get(userId);
     if (stored?.id === client.id) {
       this.stateStore.socketMap.delete(userId);
+      this.presenceService.offline(userId);
     }
 
     this.logger.log(`Disconnected: userId=${userId} socketId=${client.id}`);
+  }
+
+  // Fire-and-forget — no ack returned. Clients treat presence events as best-effort.
+  @SubscribeMessage(PRESENCE_BACKGROUND)
+  handleBackground(client: AuthenticatedSocket): void {
+    const userId = client.data.userId;
+    if (!userId) return;
+    this.presenceService.background(userId);
+    this.logger.log(`Background: userId=${userId}`);
+  }
+
+  @SubscribeMessage(PRESENCE_FOREGROUND)
+  handleForeground(client: AuthenticatedSocket): void {
+    const userId = client.data.userId;
+    if (!userId) return;
+    this.presenceService.foreground(userId);
+    this.logger.log(`Foreground: userId=${userId}`);
   }
 }

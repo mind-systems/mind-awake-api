@@ -83,13 +83,19 @@ export class AuthCodeService {
       await this.mailService.sendAuthCode(normalizedEmail, code, locale);
       this.logger.log(`sendCode: sent codeId=${savedCode.id} locale=${locale}`);
     } catch (error) {
-      this.logger.error(`sendCode: mail delivery failed, cleaning up codeId=${savedCode.id}`);
+      this.logger.error(
+        `sendCode: mail delivery failed, cleaning up codeId=${savedCode.id}`,
+      );
       await this.authCodeRepository.delete({ id: savedCode.id });
       throw error;
     }
   }
 
-  async verifyCode(email: string, code: string, language?: string): Promise<AuthResponseDto> {
+  async verifyCode(
+    email: string,
+    code: string,
+    language?: string,
+  ): Promise<AuthResponseDto> {
     const normalizedEmail = email.toLowerCase();
     const codeHash = this.hashCode(code);
 
@@ -127,7 +133,9 @@ export class AuthCodeService {
           language: resolvedLanguage,
         });
         user = await userRepo.save(user);
-        this.logger.log(`verifyCode: new user registered, userId=${user.id}, language=${resolvedLanguage}`);
+        this.logger.log(
+          `verifyCode: new user registered, userId=${user.id}, language=${resolvedLanguage}`,
+        );
       }
 
       return await this.authService.generateToken(user);

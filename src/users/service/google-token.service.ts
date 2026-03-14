@@ -11,8 +11,9 @@ export class GoogleTokenService {
 
   constructor(private readonly configService: ConfigService) {
     this.clientId = this.configService.getOrThrow<string>('GOOGLE_CLIENT_ID');
-    const clientSecret =
-      this.configService.getOrThrow<string>('GOOGLE_CLIENT_SECRET');
+    const clientSecret = this.configService.getOrThrow<string>(
+      'GOOGLE_CLIENT_SECRET',
+    );
 
     this.client = new OAuth2Client(this.clientId, clientSecret);
   }
@@ -55,7 +56,9 @@ export class GoogleTokenService {
       email = payload.email;
       name = payload.name ?? email.split('@')[0];
     } catch (error) {
-      this.logger.warn(`id_token verification failed: ${(error as Error).message}`);
+      this.logger.warn(
+        `id_token verification failed: ${(error as Error).message}`,
+      );
       throw new UnauthorizedException('Google token verification failed');
     }
 

@@ -1,21 +1,31 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { BreathSession } from './entities/breath-session.entity';
 import { BreathSessionSettingsService } from './breath-session-settings.service';
-import { CreateBreathSessionDto, UpdateBreathSessionDto, ReplaceBreathSessionDto } from './dto/breath-session.dto';
+import {
+  CreateBreathSessionDto,
+  UpdateBreathSessionDto,
+  ReplaceBreathSessionDto,
+} from './dto/breath-session.dto';
 import { calculateComplexity } from './complexity/breath-session-complexity.calculator';
 
 @Injectable()
 export class BreathSessionsService {
-
   constructor(
     @InjectRepository(BreathSession)
     private readonly breathSessionRepository: Repository<BreathSession>,
     private readonly settingsService: BreathSessionSettingsService,
   ) {}
 
-  async create(userId: string, createDto: CreateBreathSessionDto): Promise<BreathSession> {
+  async create(
+    userId: string,
+    createDto: CreateBreathSessionDto,
+  ): Promise<BreathSession> {
     const session = this.breathSessionRepository.create({
       ...createDto,
       userId,
@@ -72,10 +82,10 @@ export class BreathSessionsService {
 
     const settingsMap = await this.settingsService.findByUserAndSessions(
       userId,
-      sessions.map(s => s.id),
+      sessions.map((s) => s.id),
     );
 
-    const data = sessions.map(session => ({
+    const data = sessions.map((session) => ({
       ...session,
       isStarred: settingsMap.get(session.id)?.starred ?? false,
     }));
@@ -83,7 +93,10 @@ export class BreathSessionsService {
     return { data, total, page, pageSize };
   }
 
-  async findOne(id: string, userId?: string | null): Promise<BreathSession & { isStarred?: boolean }> {
+  async findOne(
+    id: string,
+    userId?: string | null,
+  ): Promise<BreathSession & { isStarred?: boolean }> {
     const session = await this.breathSessionRepository.findOne({
       where: { id },
     });
@@ -96,12 +109,19 @@ export class BreathSessionsService {
       return session;
     }
 
-    const settingsMap = await this.settingsService.findByUserAndSessions(userId, [id]);
+    const settingsMap = await this.settingsService.findByUserAndSessions(
+      userId,
+      [id],
+    );
     const settings = settingsMap.get(id);
     return { ...session, isStarred: settings?.starred ?? false };
   }
 
-  async update(id: string, userId: string, updateDto: UpdateBreathSessionDto): Promise<BreathSession> {
+  async update(
+    id: string,
+    userId: string,
+    updateDto: UpdateBreathSessionDto,
+  ): Promise<BreathSession> {
     const session = await this.breathSessionRepository.findOne({
       where: { id },
     });
@@ -112,7 +132,9 @@ export class BreathSessionsService {
 
     // Только владелец может обновлять
     if (session.userId !== userId) {
-      throw new ForbiddenException('You can only update your own breath sessions');
+      throw new ForbiddenException(
+        'You can only update your own breath sessions',
+      );
     }
 
     Object.assign(session, updateDto);
@@ -122,15 +144,23 @@ export class BreathSessionsService {
     return this.breathSessionRepository.save(session);
   }
 
-  async replace(id: string, userId: string, dto: ReplaceBreathSessionDto): Promise<BreathSession> {
-    const session = await this.breathSessionRepository.findOne({ where: { id } });
+  async replace(
+    id: string,
+    userId: string,
+    dto: ReplaceBreathSessionDto,
+  ): Promise<BreathSession> {
+    const session = await this.breathSessionRepository.findOne({
+      where: { id },
+    });
 
     if (!session) {
       throw new NotFoundException('Breath session not found');
     }
 
     if (session.userId !== userId) {
-      throw new ForbiddenException('You can only update your own breath sessions');
+      throw new ForbiddenException(
+        'You can only update your own breath sessions',
+      );
     }
 
     session.description = dto.description;
@@ -152,7 +182,9 @@ export class BreathSessionsService {
 
     // Только владелец может удалять
     if (session.userId !== userId) {
-      throw new ForbiddenException('You can only delete your own breath sessions');
+      throw new ForbiddenException(
+        'You can only delete your own breath sessions',
+      );
     }
 
     await this.breathSessionRepository.remove(session);

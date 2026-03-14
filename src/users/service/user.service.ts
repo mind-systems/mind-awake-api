@@ -14,7 +14,10 @@ export class UserService {
     private readonly userRepository: Repository<User>,
   ) {}
 
-  async updateProfile(userId: string, dto: UpdateUserDto): Promise<UserResponseDto> {
+  async updateProfile(
+    userId: string,
+    dto: UpdateUserDto,
+  ): Promise<UserResponseDto> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
       this.logger.warn(`updateProfile: user not found, userId=${userId}`);

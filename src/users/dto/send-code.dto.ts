@@ -7,7 +7,10 @@ export class SendCodeDto {
   @IsNotEmpty()
   email: string;
 
-  @ApiPropertyOptional({ example: 'ru', description: 'Device locale (e.g. "en", "ru", "pt-BR")' })
+  @ApiPropertyOptional({
+    example: 'ru',
+    description: 'Device locale (e.g. "en", "ru", "pt-BR")',
+  })
   @IsOptional()
   @IsString()
   locale?: string;

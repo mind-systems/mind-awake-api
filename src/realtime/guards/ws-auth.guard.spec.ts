@@ -13,8 +13,8 @@ describe('WsAuthGuard', () => {
     jwtService = { verify: jest.fn() };
     sessionService = { isValid: jest.fn() };
     guard = new WsAuthGuard(
-      jwtService as any,
-      sessionService as any,
+      jwtService as unknown as JwtService,
+      sessionService as unknown as SessionService,
     );
   });
 

@@ -26,7 +26,10 @@ export class SessionService {
 
   async isValid(token: string): Promise<boolean> {
     const tokenHash = this.hash(token);
-    const result = await this.repo.update({ tokenHash }, { lastSeenAt: new Date() });
+    const result = await this.repo.update(
+      { tokenHash },
+      { lastSeenAt: new Date() },
+    );
     return (result.affected ?? 0) > 0;
   }
 

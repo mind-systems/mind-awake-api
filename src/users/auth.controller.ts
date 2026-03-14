@@ -8,7 +8,12 @@ import {
   UseGuards,
   Request,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { AuthService } from './service/auth.service';
 import { AuthCodeService } from './service/auth-code.service';
 import { UserResponseDto } from './dto/auth-response.dto';
@@ -28,7 +33,10 @@ export class AuthController {
   ) {}
 
   @ApiOperation({ summary: 'Send authentication code to email' })
-  @ApiResponse({ status: 200, description: 'If this email is registered, a code has been sent.' })
+  @ApiResponse({
+    status: 200,
+    description: 'If this email is registered, a code has been sent.',
+  })
   @ApiResponse({ status: 429, description: 'Too Many Requests' })
   @Post('send-code')
   @HttpCode(HttpStatus.OK)
@@ -55,16 +63,24 @@ export class AuthController {
     return authResponse.user;
   }
 
-  @ApiOperation({ summary: 'Sign in with Google (server authorization code flow)' })
+  @ApiOperation({
+    summary: 'Sign in with Google (server authorization code flow)',
+  })
   @ApiResponse({ status: 200, type: UserResponseDto })
-  @ApiResponse({ status: 401, description: 'Invalid or expired Google authorization code' })
+  @ApiResponse({
+    status: 401,
+    description: 'Invalid or expired Google authorization code',
+  })
   @Post('google')
   @HttpCode(HttpStatus.OK)
   async googleAuth(
     @Body() dto: GoogleAuthDto,
     @Res({ passthrough: true }) res: Response,
   ): Promise<UserResponseDto> {
-    const authResponse = await this.authService.signInWithGoogle(dto.serverAuthCode, dto.language);
+    const authResponse = await this.authService.signInWithGoogle(
+      dto.serverAuthCode,
+      dto.language,
+    );
     res.setHeader('Authorization', `Bearer ${authResponse.accessToken}`);
     return authResponse.user;
   }

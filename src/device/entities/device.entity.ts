@@ -1,4 +1,10 @@
-import { Entity, PrimaryGeneratedColumn, Column, Index, CreateDateColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  Index,
+  CreateDateColumn,
+} from 'typeorm';
 
 @Entity('devices')
 export class Device {
@@ -39,7 +45,11 @@ export class Device {
   @Column({ name: 'manufacturer', type: 'varchar', nullable: true })
   manufacturer: string | null;
 
-  @Column({ name: 'last_seen_at', type: 'timestamptz', default: () => 'CURRENT_TIMESTAMP' })
+  @Column({
+    name: 'last_seen_at',
+    type: 'timestamptz',
+    default: () => 'CURRENT_TIMESTAMP',
+  })
   lastSeenAt: Date;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })

@@ -1,9 +1,35 @@
-import { Controller, Get, Post, Patch, Put, Delete, Body, Param, Query, UseGuards, Request } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Put,
+  Delete,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+  Request,
+} from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { BreathSessionsService } from './breath-sessions.service';
 import { BreathSessionSettingsService } from './breath-session-settings.service';
-import { CreateBreathSessionDto, UpdateBreathSessionDto, ReplaceBreathSessionDto, ListQueryDto, BreathSessionListResponseDto } from './dto/breath-session.dto';
-import { UpdateBreathSessionSettingsDto, BreathSessionSettingsResponseDto } from './dto/breath-session-settings.dto';
+import {
+  CreateBreathSessionDto,
+  UpdateBreathSessionDto,
+  ReplaceBreathSessionDto,
+  ListQueryDto,
+  BreathSessionListResponseDto,
+} from './dto/breath-session.dto';
+import {
+  UpdateBreathSessionSettingsDto,
+  BreathSessionSettingsResponseDto,
+} from './dto/breath-session-settings.dto';
 import { BreathSession } from './entities/breath-session.entity';
 import { JwtAuthGuard } from 'src/users/guards/jwt-auth.guard';
 import { OptionalJwtAuthGuard } from 'src/users/guards/optional-jwt-auth.guard';
@@ -19,7 +45,11 @@ export class BreathSessionsController {
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Create a new breath session' })
-  @ApiResponse({ status: 201, description: 'Created successfully', type: BreathSession })
+  @ApiResponse({
+    status: 201,
+    description: 'Created successfully',
+    type: BreathSession,
+  })
   @Post()
   async create(@Request() req, @Body() createDto: CreateBreathSessionDto) {
     const userId = req.user.sub;
@@ -27,8 +57,15 @@ export class BreathSessionsController {
   }
 
   @UseGuards(OptionalJwtAuthGuard)
-  @ApiOperation({ summary: 'Get list of breath sessions (own + public for authenticated, public-only for anonymous)' })
-  @ApiResponse({ status: 200, description: 'List of sessions', type: BreathSessionListResponseDto })
+  @ApiOperation({
+    summary:
+      'Get list of breath sessions (own + public for authenticated, public-only for anonymous)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'List of sessions',
+    type: BreathSessionListResponseDto,
+  })
   @Get('list')
   async findList(@Request() req, @Query() query: ListQueryDto) {
     const userId = req.user?.sub ?? null;
@@ -39,8 +76,14 @@ export class BreathSessionsController {
 
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: 'Update per-user settings for a breath session (e.g. star/unstar)' })
-  @ApiResponse({ status: 200, description: 'Settings updated', type: BreathSessionSettingsResponseDto })
+  @ApiOperation({
+    summary: 'Update per-user settings for a breath session (e.g. star/unstar)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Settings updated',
+    type: BreathSessionSettingsResponseDto,
+  })
   @ApiResponse({ status: 404, description: 'Breath session not found' })
   @Patch(':id/settings')
   async updateSettings(
@@ -50,13 +93,21 @@ export class BreathSessionsController {
   ) {
     const userId = req.user.sub;
     await this.breathSessionsService.findOne(id);
-    const settings = await this.breathSessionSettingsService.upsert(userId, id, dto);
+    const settings = await this.breathSessionSettingsService.upsert(
+      userId,
+      id,
+      dto,
+    );
     return { starred: settings.starred };
   }
 
   @UseGuards(OptionalJwtAuthGuard)
   @ApiOperation({ summary: 'Get a specific breath session by ID' })
-  @ApiResponse({ status: 200, description: 'Breath session found', type: BreathSession })
+  @ApiResponse({
+    status: 200,
+    description: 'Breath session found',
+    type: BreathSession,
+  })
   @ApiResponse({ status: 404, description: 'Breath session not found' })
   @Get(':id')
   async findOne(@Request() req, @Param('id') id: string) {
@@ -67,10 +118,18 @@ export class BreathSessionsController {
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Update a breath session' })
-  @ApiResponse({ status: 200, description: 'Updated successfully', type: BreathSession })
+  @ApiResponse({
+    status: 200,
+    description: 'Updated successfully',
+    type: BreathSession,
+  })
   @ApiResponse({ status: 404, description: 'Breath session not found' })
   @Patch(':id')
-  async update(@Request() req, @Param('id') id: string, @Body() updateDto: UpdateBreathSessionDto) {
+  async update(
+    @Request() req,
+    @Param('id') id: string,
+    @Body() updateDto: UpdateBreathSessionDto,
+  ) {
     const userId = req.user.sub;
     return this.breathSessionsService.update(id, userId, updateDto);
   }
@@ -78,10 +137,18 @@ export class BreathSessionsController {
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Replace a breath session (full update)' })
-  @ApiResponse({ status: 200, description: 'Replaced successfully', type: BreathSession })
+  @ApiResponse({
+    status: 200,
+    description: 'Replaced successfully',
+    type: BreathSession,
+  })
   @ApiResponse({ status: 404, description: 'Breath session not found' })
   @Put(':id')
-  async replace(@Request() req, @Param('id') id: string, @Body() replaceDto: ReplaceBreathSessionDto) {
+  async replace(
+    @Request() req,
+    @Param('id') id: string,
+    @Body() replaceDto: ReplaceBreathSessionDto,
+  ) {
     return this.breathSessionsService.replace(id, req.user.sub, replaceDto);
   }
 

@@ -95,7 +95,7 @@ describe('calculateComplexity', () => {
 
   it('should handle mixed: opening rest + inter-exercise rest + between-set rest', () => {
     const exercises: BreathExercise[] = [
-      { steps: [], restDuration: 5000, repeatCount: 1 },  // index 0 — no penalty
+      { steps: [], restDuration: 5000, repeatCount: 1 }, // index 0 — no penalty
       {
         steps: [
           { type: 'inhale', duration: 4000 },
@@ -104,7 +104,7 @@ describe('calculateComplexity', () => {
         restDuration: 1000,
         repeatCount: 3,
       },
-      { steps: [], restDuration: 2000, repeatCount: 1 },  // index 2 — penalty = 2000 * 3
+      { steps: [], restDuration: 2000, repeatCount: 1 }, // index 2 — penalty = 2000 * 3
       {
         steps: [{ type: 'inhale', duration: 3000 }],
         restDuration: 0,

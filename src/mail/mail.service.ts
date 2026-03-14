@@ -20,7 +20,8 @@ export class MailService {
 
   constructor(private readonly configService: ConfigService) {
     const apiKey = this.configService.get<string>('RESEND_API_KEY');
-    if (!apiKey) throw new Error('RESEND_API_KEY environment variable is not defined');
+    if (!apiKey)
+      throw new Error('RESEND_API_KEY environment variable is not defined');
     this.resend = new Resend(apiKey);
 
     this.mailFrom = this.configService.get<string>(
@@ -33,17 +34,27 @@ export class MailService {
     );
 
     for (const locale of SUPPORTED_LOCALES) {
-      const templatePath = path.join(__dirname, 'templates', `auth-code.${locale}.html`);
+      const templatePath = path.join(
+        __dirname,
+        'templates',
+        `auth-code.${locale}.html`,
+      );
       try {
         this.templates.set(locale, fs.readFileSync(templatePath, 'utf-8'));
       } catch (error) {
-        this.logger.error(`Failed to load template locale=${locale}: ${error.message}`);
+        this.logger.error(
+          `Failed to load template locale=${locale}: ${error.message}`,
+        );
         throw error;
       }
     }
   }
 
-  async sendAuthCode(email: string, code: string, locale: SupportedLocale = 'en'): Promise<void> {
+  async sendAuthCode(
+    email: string,
+    code: string,
+    locale: SupportedLocale = 'en',
+  ): Promise<void> {
     const templateHtml = this.templates.get(locale) ?? this.templates.get('en');
     if (!templateHtml) {
       throw new Error(`No mail template found for locale=${locale}`);
@@ -66,10 +77,14 @@ export class MailService {
     });
 
     if (error) {
-      this.logger.error(`sendAuthCode failed locale=${locale}: ${JSON.stringify(error)}`);
+      this.logger.error(
+        `sendAuthCode failed locale=${locale}: ${JSON.stringify(error)}`,
+      );
       throw new Error(`Failed to send email: ${error.message}`);
     }
 
-    this.logger.log(`sendAuthCode: sent locale=${locale} messageId=${data?.id}`);
+    this.logger.log(
+      `sendAuthCode: sent locale=${locale} messageId=${data?.id}`,
+    );
   }
 }

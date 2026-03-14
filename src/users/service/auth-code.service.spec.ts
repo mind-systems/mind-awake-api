@@ -1,4 +1,8 @@
-import { HttpException, HttpStatus, UnauthorizedException } from '@nestjs/common';
+import {
+  HttpException,
+  HttpStatus,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { AuthCodeService } from './auth-code.service';
 import { AuthCode } from '../entities/auth-code.entity';
 import { User } from '../entities/user.entity';
@@ -16,7 +20,13 @@ const makeAuthCode = (overrides: Partial<AuthCode> = {}): AuthCode =>
   });
 
 const makeUser = (overrides: Partial<User> = {}): User =>
-  new User({ id: 'user-uuid', email: 'test@example.com', name: 'test', role: UserRole.USER, ...overrides });
+  new User({
+    id: 'user-uuid',
+    email: 'test@example.com',
+    name: 'test',
+    role: UserRole.USER,
+    ...overrides,
+  });
 
 describe('AuthCodeService', () => {
   let service: AuthCodeService;
@@ -55,7 +65,9 @@ describe('AuthCodeService', () => {
     };
 
     dataSource = {
-      transaction: jest.fn().mockImplementation((cb: (m: any) => Promise<any>) => cb(manager)),
+      transaction: jest
+        .fn()
+        .mockImplementation((cb: (m: any) => Promise<any>) => cb(manager)),
       getRepository: jest.fn().mockImplementation((entity: any) => {
         if (entity === User) return userRepo;
         return authCodeRepo;
@@ -67,10 +79,17 @@ describe('AuthCodeService', () => {
     };
 
     authService = {
-      generateToken: jest.fn().mockResolvedValue({ accessToken: 'jwt-token', user: {} }),
+      generateToken: jest
+        .fn()
+        .mockResolvedValue({ accessToken: 'jwt-token', user: {} }),
     };
 
-    service = new AuthCodeService(authCodeRepository, dataSource, mailService, authService);
+    service = new AuthCodeService(
+      authCodeRepository,
+      dataSource,
+      mailService,
+      authService,
+    );
   });
 
   // ─────────────────────────────────────────────
@@ -102,8 +121,14 @@ describe('AuthCodeService', () => {
 
       await service.sendCode('Test@Example.com');
 
-      expect(authCodeRepo.delete).toHaveBeenCalledWith({ email: 'test@example.com' });
-      expect(mailService.sendAuthCode).toHaveBeenCalledWith('test@example.com', expect.any(String), expect.any(String));
+      expect(authCodeRepo.delete).toHaveBeenCalledWith({
+        email: 'test@example.com',
+      });
+      expect(mailService.sendAuthCode).toHaveBeenCalledWith(
+        'test@example.com',
+        expect.any(String),
+        expect.any(String),
+      );
     });
 
     it('deletes the saved code and rethrows when mail sending fails', async () => {
@@ -113,8 +138,12 @@ describe('AuthCodeService', () => {
       authCodeRepo.save.mockResolvedValue(savedCode);
       mailService.sendAuthCode.mockRejectedValue(new Error('SMTP error'));
 
-      await expect(service.sendCode('test@example.com')).rejects.toThrow('SMTP error');
-      expect(authCodeRepository.delete).toHaveBeenCalledWith({ id: 'saved-id' });
+      await expect(service.sendCode('test@example.com')).rejects.toThrow(
+        'SMTP error',
+      );
+      expect(authCodeRepository.delete).toHaveBeenCalledWith({
+        id: 'saved-id',
+      });
     });
 
     it('normalizes email to lowercase', async () => {
@@ -125,7 +154,11 @@ describe('AuthCodeService', () => {
 
       await service.sendCode('UPPER@EXAMPLE.COM');
 
-      expect(mailService.sendAuthCode).toHaveBeenCalledWith('upper@example.com', expect.any(String), expect.any(String));
+      expect(mailService.sendAuthCode).toHaveBeenCalledWith(
+        'upper@example.com',
+        expect.any(String),
+        expect.any(String),
+      );
     });
 
     it('uses the existing user language when the user is already registered', async () => {
@@ -137,7 +170,11 @@ describe('AuthCodeService', () => {
 
       await service.sendCode('test@example.com', 'en');
 
-      expect(mailService.sendAuthCode).toHaveBeenCalledWith(expect.any(String), expect.any(String), 'ru');
+      expect(mailService.sendAuthCode).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.any(String),
+        'ru',
+      );
     });
 
     it('uses request locale for a new user', async () => {
@@ -149,7 +186,11 @@ describe('AuthCodeService', () => {
 
       await service.sendCode('test@example.com', 'ru');
 
-      expect(mailService.sendAuthCode).toHaveBeenCalledWith(expect.any(String), expect.any(String), 'ru');
+      expect(mailService.sendAuthCode).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.any(String),
+        'ru',
+      );
     });
 
     it('falls back to en when no locale and user is new', async () => {
@@ -161,7 +202,11 @@ describe('AuthCodeService', () => {
 
       await service.sendCode('test@example.com');
 
-      expect(mailService.sendAuthCode).toHaveBeenCalledWith(expect.any(String), expect.any(String), 'en');
+      expect(mailService.sendAuthCode).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.any(String),
+        'en',
+      );
     });
   });
 
@@ -179,9 +224,9 @@ describe('AuthCodeService', () => {
     it('throws UnauthorizedException for invalid or expired code', async () => {
       authCodeRepo.createQueryBuilder.mockReturnValue(makeQb(null));
 
-      await expect(service.verifyCode('test@example.com', '000000')).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(
+        service.verifyCode('test@example.com', '000000'),
+      ).rejects.toThrow(UnauthorizedException);
     });
 
     it('marks the code as used and returns a token for an existing user', async () => {
@@ -193,14 +238,20 @@ describe('AuthCodeService', () => {
 
       const result = await service.verifyCode('test@example.com', '123456');
 
-      expect(manager.save).toHaveBeenCalledWith(expect.objectContaining({ used: true }));
+      expect(manager.save).toHaveBeenCalledWith(
+        expect.objectContaining({ used: true }),
+      );
       expect(authService.generateToken).toHaveBeenCalledWith(user);
       expect(result.accessToken).toBe('jwt-token');
     });
 
     it('creates a new user when the email is not registered yet', async () => {
       const code = makeAuthCode({ email: 'new@example.com' });
-      const newUser = makeUser({ id: 'new-uuid', email: 'new@example.com', name: 'new' });
+      const newUser = makeUser({
+        id: 'new-uuid',
+        email: 'new@example.com',
+        name: 'new',
+      });
       authCodeRepo.createQueryBuilder.mockReturnValue(makeQb(code));
       manager.save.mockResolvedValue({ ...code, used: true });
       userRepo.findOne.mockResolvedValue(null);
@@ -223,7 +274,9 @@ describe('AuthCodeService', () => {
 
       await service.verifyCode('alice@domain.com', '123456');
 
-      expect(userRepo.save).toHaveBeenCalledWith(expect.objectContaining({ name: 'alice' }));
+      expect(userRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({ name: 'alice' }),
+      );
     });
 
     it('normalizes email to lowercase before lookup', async () => {
@@ -235,11 +288,13 @@ describe('AuthCodeService', () => {
       };
       authCodeRepo.createQueryBuilder.mockReturnValue(qb);
 
-      await expect(service.verifyCode('TEST@EXAMPLE.COM', '000000')).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(
+        service.verifyCode('TEST@EXAMPLE.COM', '000000'),
+      ).rejects.toThrow(UnauthorizedException);
 
-      expect(qb.andWhere).toHaveBeenCalledWith('ac.email = :email', { email: 'test@example.com' });
+      expect(qb.andWhere).toHaveBeenCalledWith('ac.email = :email', {
+        email: 'test@example.com',
+      });
     });
 
     it('does not create a user if one already exists (no duplicate)', async () => {

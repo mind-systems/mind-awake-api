@@ -13,8 +13,10 @@ jest.mock('resend', () => ({
   })),
 }));
 
-const EN_TEMPLATE = '<html>en {{magic_link}} {{manual_code}} {{expires_in}}</html>';
-const RU_TEMPLATE = '<html>ru {{magic_link}} {{manual_code}} {{expires_in}}</html>';
+const EN_TEMPLATE =
+  '<html>en {{magic_link}} {{manual_code}} {{expires_in}}</html>';
+const RU_TEMPLATE =
+  '<html>ru {{magic_link}} {{manual_code}} {{expires_in}}</html>';
 
 describe('MailService', () => {
   let service: MailService;
@@ -39,7 +41,10 @@ describe('MailService', () => {
         {
           provide: ConfigService,
           useValue: {
-            get: jest.fn((key: string, defaultVal?: string) => configValues[key] ?? defaultVal),
+            get: jest.fn(
+              (key: string, defaultVal?: string) =>
+                configValues[key] ?? defaultVal,
+            ),
           },
         },
       ],
@@ -49,7 +54,8 @@ describe('MailService', () => {
 
     // Access the resend instance's send mock
     const { Resend } = require('resend');
-    resendSendMock = Resend.mock.results[Resend.mock.results.length - 1].value.emails.send;
+    resendSendMock =
+      Resend.mock.results[Resend.mock.results.length - 1].value.emails.send;
   });
 
   afterEach(() => {
@@ -58,8 +64,14 @@ describe('MailService', () => {
 
   describe('constructor', () => {
     it('loads all locale templates at startup', () => {
-      expect(fs.readFileSync).toHaveBeenCalledWith(expect.stringContaining('auth-code.en.html'), 'utf-8');
-      expect(fs.readFileSync).toHaveBeenCalledWith(expect.stringContaining('auth-code.ru.html'), 'utf-8');
+      expect(fs.readFileSync).toHaveBeenCalledWith(
+        expect.stringContaining('auth-code.en.html'),
+        'utf-8',
+      );
+      expect(fs.readFileSync).toHaveBeenCalledWith(
+        expect.stringContaining('auth-code.ru.html'),
+        'utf-8',
+      );
     });
 
     it('throws if a template file is missing', async () => {
@@ -73,7 +85,10 @@ describe('MailService', () => {
           {
             provide: ConfigService,
             useValue: {
-              get: jest.fn((key: string, defaultVal?: string) => configValues[key] ?? defaultVal),
+              get: jest.fn(
+                (key: string, defaultVal?: string) =>
+                  configValues[key] ?? defaultVal,
+              ),
             },
           },
         ],
@@ -143,9 +158,9 @@ describe('MailService', () => {
         error: { message: 'Invalid API key', name: 'validation_error' },
       });
 
-      await expect(service.sendAuthCode('user@test.com', '111111', 'en')).rejects.toThrow(
-        'Failed to send email: Invalid API key',
-      );
+      await expect(
+        service.sendAuthCode('user@test.com', '111111', 'en'),
+      ).rejects.toThrow('Failed to send email: Invalid API key');
     });
   });
 });

@@ -19,7 +19,13 @@ describe('AuthService', () => {
   let txManager;
 
   const makeUser = (overrides: Partial<User> = {}): User =>
-    new User({ id: 'uuid-1', email: 'test@example.com', name: 'Test User', role: UserRole.USER, ...overrides });
+    new User({
+      id: 'uuid-1',
+      email: 'test@example.com',
+      name: 'Test User',
+      role: UserRole.USER,
+      ...overrides,
+    });
 
   beforeEach(async () => {
     const makeQb = (result: User | null) => ({
@@ -39,7 +45,9 @@ describe('AuthService', () => {
     };
 
     dataSource = {
-      transaction: jest.fn().mockImplementation((cb: (m: any) => Promise<any>) => cb(txManager)),
+      transaction: jest
+        .fn()
+        .mockImplementation((cb: (m: any) => Promise<any>) => cb(txManager)),
     };
 
     jwtService = {
@@ -99,14 +107,19 @@ describe('AuthService', () => {
       expect(jwtService.sign).toHaveBeenCalledWith(
         expect.objectContaining({ sub: user.id, email: user.email }),
       );
-      expect(sessionService.create).toHaveBeenCalledWith('mock-jwt-token', user.id);
+      expect(sessionService.create).toHaveBeenCalledWith(
+        'mock-jwt-token',
+        user.id,
+      );
       expect(result.accessToken).toBe('mock-jwt-token');
     });
   });
 
   describe('logout', () => {
     it('should revoke the session', async () => {
-      const mockRequest = { headers: { authorization: 'Bearer mock-token' } } as any;
+      const mockRequest = {
+        headers: { authorization: 'Bearer mock-token' },
+      } as any;
 
       await service.logout(mockRequest);
 
@@ -123,7 +136,11 @@ describe('AuthService', () => {
   });
 
   describe('signInWithGoogle', () => {
-    const mockProfile = { googleId: 'g-123', email: 'test@example.com', name: 'Test User' };
+    const mockProfile = {
+      googleId: 'g-123',
+      email: 'test@example.com',
+      name: 'Test User',
+    };
 
     it('should return token for existing user without creating a new one', async () => {
       const existingUser = makeUser();
@@ -136,7 +153,9 @@ describe('AuthService', () => {
 
       const result = await service.signInWithGoogle('valid-code');
 
-      expect(googleTokenService.exchangeCodeForProfile).toHaveBeenCalledWith('valid-code');
+      expect(googleTokenService.exchangeCodeForProfile).toHaveBeenCalledWith(
+        'valid-code',
+      );
       expect(txUserRepo.save).not.toHaveBeenCalled();
       expect(result.accessToken).toBe('mock-jwt-token');
       expect(result.user.email).toBe(mockProfile.email);
@@ -156,7 +175,11 @@ describe('AuthService', () => {
       const result = await service.signInWithGoogle('valid-code');
 
       expect(txUserRepo.create).toHaveBeenCalledWith(
-        expect.objectContaining({ email: mockProfile.email, name: mockProfile.name, role: UserRole.USER }),
+        expect.objectContaining({
+          email: mockProfile.email,
+          name: mockProfile.name,
+          role: UserRole.USER,
+        }),
       );
       expect(txUserRepo.save).toHaveBeenCalledWith(newUser);
       expect(result.accessToken).toBe('mock-jwt-token');
@@ -165,10 +188,14 @@ describe('AuthService', () => {
 
     it('should propagate UnauthorizedException when Google exchange fails', async () => {
       googleTokenService.exchangeCodeForProfile.mockRejectedValue(
-        new UnauthorizedException('Invalid or expired Google authorization code'),
+        new UnauthorizedException(
+          'Invalid or expired Google authorization code',
+        ),
       );
 
-      await expect(service.signInWithGoogle('bad-code')).rejects.toThrow(UnauthorizedException);
+      await expect(service.signInWithGoogle('bad-code')).rejects.toThrow(
+        UnauthorizedException,
+      );
       expect(dataSource.transaction).not.toHaveBeenCalled();
     });
   });

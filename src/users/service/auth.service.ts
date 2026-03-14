@@ -1,7 +1,4 @@
-import {
-  Injectable,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
@@ -28,7 +25,9 @@ export class AuthService {
 
   async logout(req: RequestWithUser): Promise<void> {
     const authHeader = req.headers?.authorization as string | undefined;
-    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : undefined;
+    const token = authHeader?.startsWith('Bearer ')
+      ? authHeader.slice(7)
+      : undefined;
     if (!token) return;
 
     await this.sessionService.revoke(token);
@@ -49,9 +48,15 @@ export class AuthService {
     return new AuthResponseDto(accessToken, userDto);
   }
 
-  async signInWithGoogle(serverAuthCode: string, language?: string): Promise<AuthResponseDto> {
-    this.logger.log('signInWithGoogle: exchanging server auth code for Google profile');
-    const profile = await this.googleTokenService.exchangeCodeForProfile(serverAuthCode);
+  async signInWithGoogle(
+    serverAuthCode: string,
+    language?: string,
+  ): Promise<AuthResponseDto> {
+    this.logger.log(
+      'signInWithGoogle: exchanging server auth code for Google profile',
+    );
+    const profile =
+      await this.googleTokenService.exchangeCodeForProfile(serverAuthCode);
     this.logger.log(`signInWithGoogle: looking up or creating user`);
 
     const user = await this.dataSource.transaction(async (manager) => {
@@ -64,7 +69,9 @@ export class AuthService {
         .getOne();
 
       if (existing) {
-        this.logger.log(`signInWithGoogle: existing user found, userId=${existing.id}`);
+        this.logger.log(
+          `signInWithGoogle: existing user found, userId=${existing.id}`,
+        );
         return existing;
       }
 

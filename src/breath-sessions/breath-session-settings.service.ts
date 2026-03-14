@@ -20,7 +20,9 @@ export class BreathSessionSettingsService {
       { userId, sessionId, starred: dto.starred },
       { conflictPaths: ['userId', 'sessionId'] },
     );
-    return this.settingsRepository.findOne({ where: { userId, sessionId } }) as Promise<BreathSessionSettings>;
+    return this.settingsRepository.findOne({
+      where: { userId, sessionId },
+    }) as Promise<BreathSessionSettings>;
   }
 
   async findByUserAndSessions(

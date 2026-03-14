@@ -1,7 +1,8 @@
 import { SessionService } from './session.service';
 import { createHash } from 'crypto';
 
-const hash = (token: string) => createHash('sha256').update(token).digest('hex');
+const hash = (token: string) =>
+  createHash('sha256').update(token).digest('hex');
 
 describe('SessionService', () => {
   let service: SessionService;
@@ -72,7 +73,9 @@ describe('SessionService', () => {
 
       await service.revoke('some-token');
 
-      expect(repo.delete).toHaveBeenCalledWith({ tokenHash: hash('some-token') });
+      expect(repo.delete).toHaveBeenCalledWith({
+        tokenHash: hash('some-token'),
+      });
     });
 
     it('does not throw when session does not exist', async () => {

@@ -1,7 +1,9 @@
 import { BreathSessionSettingsService } from './breath-session-settings.service';
 import { BreathSessionSettings } from './entities/breath-session-settings.entity';
 
-const makeSettings = (overrides: Partial<BreathSessionSettings> = {}): BreathSessionSettings =>
+const makeSettings = (
+  overrides: Partial<BreathSessionSettings> = {},
+): BreathSessionSettings =>
   Object.assign(new BreathSessionSettings(), {
     id: 'settings-uuid',
     userId: 'user-uuid',
@@ -32,7 +34,9 @@ describe('BreathSessionSettingsService', () => {
       repository.upsert.mockResolvedValue(undefined);
       repository.findOne.mockResolvedValue(settings);
 
-      const result = await service.upsert('user-uuid', 'session-uuid', { starred: true });
+      const result = await service.upsert('user-uuid', 'session-uuid', {
+        starred: true,
+      });
 
       expect(repository.upsert).toHaveBeenCalledWith(
         { userId: 'user-uuid', sessionId: 'session-uuid', starred: true },
@@ -49,7 +53,9 @@ describe('BreathSessionSettingsService', () => {
       repository.upsert.mockResolvedValue(undefined);
       repository.findOne.mockResolvedValue(settings);
 
-      const result = await service.upsert('user-uuid', 'session-uuid', { starred: false });
+      const result = await service.upsert('user-uuid', 'session-uuid', {
+        starred: false,
+      });
 
       expect(repository.upsert).toHaveBeenCalledWith(
         { userId: 'user-uuid', sessionId: 'session-uuid', starred: false },
@@ -65,7 +71,10 @@ describe('BreathSessionSettingsService', () => {
       const s2 = makeSettings({ sessionId: 'session-2', starred: false });
       repository.find.mockResolvedValue([s1, s2]);
 
-      const result = await service.findByUserAndSessions('user-uuid', ['session-1', 'session-2']);
+      const result = await service.findByUserAndSessions('user-uuid', [
+        'session-1',
+        'session-2',
+      ]);
 
       expect(result).toBeInstanceOf(Map);
       expect(result.size).toBe(2);
@@ -76,7 +85,9 @@ describe('BreathSessionSettingsService', () => {
     it('should return empty Map when no records exist', async () => {
       repository.find.mockResolvedValue([]);
 
-      const result = await service.findByUserAndSessions('user-uuid', ['session-1']);
+      const result = await service.findByUserAndSessions('user-uuid', [
+        'session-1',
+      ]);
 
       expect(result).toBeInstanceOf(Map);
       expect(result.size).toBe(0);
