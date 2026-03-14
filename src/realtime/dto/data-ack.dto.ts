@@ -3,4 +3,5 @@ export class DataAckDto {
   receivedCount: number;
   maxSamplesPerSecond: number;
   timestamp: number;
+  droppedCount?: number;
 }

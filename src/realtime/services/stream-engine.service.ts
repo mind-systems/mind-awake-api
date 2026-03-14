@@ -1,0 +1,155 @@
+import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { ConfigService } from '@nestjs/config';
+import { OnEvent } from '@nestjs/event-emitter';
+import { SessionStreamSample } from '../entities/session-stream-sample.entity';
+import { LiveSession } from '../entities/live-session.entity';
+import {
+  SessionBuffer,
+  TelemetrySample,
+} from '../interfaces/session-buffer.interface';
+
+export interface PushResult {
+  accepted: boolean;
+  droppedCount: number;
+  totalReceived: number;
+}
+
+@Injectable()
+export class StreamEngine implements OnApplicationBootstrap {
+  private readonly logger = new Logger(StreamEngine.name);
+  private readonly buffers = new Map<string, SessionBuffer>();
+  private readonly maxBufferBytes: number;
+  private readonly maxSessions: number;
+  private readonly _maxSamplesPerSecond: number;
+  private flushTimer: ReturnType<typeof setInterval> | undefined;
+
+  constructor(
+    @InjectRepository(SessionStreamSample)
+    private readonly sampleRepo: Repository<SessionStreamSample>,
+    @InjectRepository(LiveSession)
+    private readonly liveSessionRepo: Repository<LiveSession>,
+    private readonly configService: ConfigService,
+  ) {
+    this.maxBufferBytes = this.configService.get<number>(
+      'WS_STREAM_MAX_BUFFER_BYTES',
+      204800,
+    );
+    this.maxSessions = this.configService.get<number>(
+      'WS_STREAM_MAX_SESSIONS',
+      1000,
+    );
+    this._maxSamplesPerSecond = this.configService.get<number>(
+      'WS_BACKPRESSURE_SAMPLES_PER_SEC',
+      50,
+    );
+  }
+
+  get maxSamplesPerSecond(): number {
+    return this._maxSamplesPerSecond;
+  }
+
+  onApplicationBootstrap(): void {
+    this.flushTimer = setInterval(() => {
+      this.flushAll().catch((err: unknown) => {
+        this.logger.error('Periodic flush failed', err);
+      });
+    }, 5000);
+  }
+
+  onApplicationShutdown(): void {
+    if (this.flushTimer !== undefined) {
+      clearInterval(this.flushTimer);
+    }
+  }
+
+  push(sessionId: string, sample: TelemetrySample): PushResult {
+    let buffer = this.buffers.get(sessionId);
+
+    if (!buffer) {
+      if (this.buffers.size >= this.maxSessions) {
+        return { accepted: false, droppedCount: 1, totalReceived: 0 };
+      }
+      buffer = { sessionId, samples: [], byteSize: 0, totalReceived: 0 };
+      this.buffers.set(sessionId, buffer);
+    }
+
+    const sampleBytes = JSON.stringify(sample).length;
+
+    if (buffer.byteSize + sampleBytes > this.maxBufferBytes) {
+      return {
+        accepted: false,
+        droppedCount: 1,
+        totalReceived: buffer.totalReceived,
+      };
+    }
+
+    buffer.samples.push(sample);
+    buffer.byteSize += sampleBytes;
+    buffer.totalReceived += 1;
+
+    return {
+      accepted: true,
+      droppedCount: 0,
+      totalReceived: buffer.totalReceived,
+    };
+  }
+
+  async flush(sessionId: string): Promise<void> {
+    const buffer = this.buffers.get(sessionId);
+    if (!buffer || buffer.samples.length === 0) return;
+
+    const samples = buffer.samples.slice();
+    const now = new Date();
+
+    await this.sampleRepo.save(
+      this.sampleRepo.create({
+        liveSessionId: sessionId,
+        samples: samples as unknown as Record<string, unknown>[],
+        flushedAt: now,
+      }),
+    );
+
+    // Clear only after successful save — preserves data on DB error
+    buffer.samples = [];
+    buffer.byteSize = 0;
+
+    // Fire-and-forget — not awaited; a failure here is non-critical
+    this.liveSessionRepo
+      .update({ id: sessionId }, { lastActivityAt: now })
+      .catch((err: unknown) => {
+        this.logger.error(
+          `Failed to update lastActivityAt for sessionId=${sessionId}`,
+          err,
+        );
+      });
+
+    this.logger.log(
+      `Flushed ${samples.length} samples for sessionId=${sessionId}`,
+    );
+  }
+
+  async flushAll(): Promise<void> {
+    const sessionIds = Array.from(this.buffers.keys());
+    for (const sessionId of sessionIds) {
+      try {
+        await this.flush(sessionId);
+      } catch (err: unknown) {
+        this.logger.error(`Failed to flush sessionId=${sessionId}`, err);
+      }
+    }
+  }
+
+  @OnEvent('session.completed')
+  async onSessionCompleted(payload: { sessionId: string }): Promise<void> {
+    await this.flush(payload.sessionId);
+    this.buffers.delete(payload.sessionId);
+  }
+
+  @OnEvent('session.abandoned')
+  async onSessionAbandoned(payload: { sessionId: string }): Promise<void> {
+    await this.flush(payload.sessionId);
+    this.buffers.delete(payload.sessionId);
+  }
+}
