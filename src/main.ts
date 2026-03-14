@@ -7,6 +7,7 @@ import {
   utilities as nestWinstonModuleUtilities,
 } from 'nest-winston';
 import DailyRotateFile = require('winston-daily-rotate-file');
+import { IoAdapter } from '@nestjs/platform-socket.io';
 import { AppModule } from './app.module';
 import helmet from 'helmet';
 
@@ -49,8 +50,10 @@ async function bootstrap() {
     logger,
   });
 
+  app.useWebSocketAdapter(new IoAdapter(app));
+
   // Security
-  app.use(helmet()); // защита HTTP заголовками
+  app.use(helmet());
 
   if (!isProd) {
     const config = new DocumentBuilder()
