@@ -4,11 +4,13 @@ import {
   MessageBody,
   OnGatewayConnection,
   OnGatewayDisconnect,
+  OnGatewayInit,
   SubscribeMessage,
   WebSocketGateway,
 } from '@nestjs/websockets';
-import { Socket } from 'socket.io';
+import { Server, Socket } from 'socket.io';
 import { WsAuthGuard } from '../guards/ws-auth.guard';
+import { WsAuthMiddleware } from '../middleware/ws-auth.middleware';
 import { WsPayloadSizeGuard } from '../guards/ws-payload-size.guard';
 import { WsRateLimitGuard } from '../guards/ws-rate-limit.guard';
 import { ActivityEngine } from '../services/activity-engine.service';
@@ -25,7 +27,7 @@ import type { AuthenticatedSocket } from '../interfaces/authenticated-socket.int
 @UseGuards(WsAuthGuard, WsPayloadSizeGuard, WsRateLimitGuard)
 @UsePipes(new ValidationPipe({ whitelist: true }))
 export class TelemetryGateway
-  implements OnGatewayConnection, OnGatewayDisconnect
+  implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
 {
   private readonly logger = new Logger(TelemetryGateway.name);
 
@@ -33,13 +35,26 @@ export class TelemetryGateway
     private readonly activityEngine: ActivityEngine,
     private readonly streamEngine: StreamEngine,
     private readonly rateLimiterService: RateLimiterService,
+    private readonly wsAuthMiddleware: WsAuthMiddleware,
   ) {}
+
+  afterInit(server: Server): void {
+    server.use(this.wsAuthMiddleware.middleware());
+    this.logger.log('[Telemetry] WsAuthMiddleware registered');
+  }
 
   handleConnection(client: Socket): void {
     const userId = (client as AuthenticatedSocket).data.userId;
     if (!userId) {
+      // Should not happen — WsAuthMiddleware rejects unauthenticated sockets
+      // before handleConnection fires. This is a safety net only.
+      this.logger.warn(
+        `[Telemetry] handleConnection: no userId — socketId=${client.id}, disconnecting`,
+      );
       client.disconnect(true);
+      return;
     }
+    this.logger.log(`[Telemetry] Connected — userId=${userId} socketId=${client.id}`);
   }
 
   handleDisconnect(client: Socket): void {

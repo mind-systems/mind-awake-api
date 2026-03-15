@@ -5,12 +5,14 @@ import {
   MessageBody,
   OnGatewayConnection,
   OnGatewayDisconnect,
+  OnGatewayInit,
   SubscribeMessage,
   WebSocketGateway,
   WebSocketServer,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { WsAuthGuard } from '../guards/ws-auth.guard';
+import { WsAuthMiddleware } from '../middleware/ws-auth.middleware';
 import { WsPayloadSizeGuard } from '../guards/ws-payload-size.guard';
 import { WsRateLimitGuard } from '../guards/ws-rate-limit.guard';
 import { StateStore } from '../state-store';
@@ -36,7 +38,7 @@ import { ActivityStartDto } from '../dto/activity-start.dto';
 @WebSocketGateway({ namespace: '/live', cors: true })
 @UseGuards(WsAuthGuard, WsPayloadSizeGuard, WsRateLimitGuard)
 @UsePipes(new ValidationPipe({ whitelist: true }))
-export class LiveGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class LiveGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
   private readonly logger = new Logger(LiveGateway.name);
 
   @WebSocketServer()
@@ -52,6 +54,7 @@ export class LiveGateway implements OnGatewayConnection, OnGatewayDisconnect {
     private readonly activityEngine: ActivityEngine,
     private readonly graceTimerManager: GraceTimerManager,
     private readonly rateLimiterService: RateLimiterService,
+    private readonly wsAuthMiddleware: WsAuthMiddleware,
     configService: ConfigService,
   ) {
     this.activityStartLimit = configService.get<number>(
@@ -64,11 +67,19 @@ export class LiveGateway implements OnGatewayConnection, OnGatewayDisconnect {
     );
   }
 
+  afterInit(server: Server): void {
+    server.use(this.wsAuthMiddleware.middleware());
+    this.logger.log('[Live] WsAuthMiddleware registered');
+  }
+
   handleConnection(client: Socket): void {
     const socket = client as AuthenticatedSocket;
     const userId = socket.data.userId;
 
     if (!userId) {
+      // Should not happen — WsAuthMiddleware rejects unauthenticated sockets
+      // before handleConnection fires. This is a safety net only.
+      this.logger.warn(`[Live] handleConnection: no userId — socketId=${client.id}, disconnecting`);
       client.disconnect(true);
       return;
     }

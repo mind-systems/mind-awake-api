@@ -4,45 +4,32 @@ import {
   Injectable,
   Logger,
 } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
 import { WsException } from '@nestjs/websockets';
-import { SessionService } from '../../users/service/session.service';
 import { AuthenticatedSocket } from '../interfaces/authenticated-socket.interface';
 
+/**
+ * Guard applied to @SubscribeMessage handlers.
+ *
+ * WsAuthMiddleware (registered in afterInit) already authenticated the socket
+ * and stored userId in client.data before handleConnection fired. This guard
+ * simply asserts that the userId is present — it will always be set for
+ * legitimate connections, so this is a safety net rather than the auth boundary.
+ */
 @Injectable()
 export class WsAuthGuard implements CanActivate {
   private readonly logger = new Logger(WsAuthGuard.name);
 
-  constructor(
-    private readonly jwtService: JwtService,
-    private readonly sessionService: SessionService,
-  ) {}
-
-  async canActivate(context: ExecutionContext): Promise<boolean> {
+  canActivate(context: ExecutionContext): boolean {
     const client = context.switchToWs().getClient<AuthenticatedSocket>();
-    const token: unknown = client.handshake?.auth?.token;
+    const userId = client.data?.userId;
 
-    if (!token || typeof token !== 'string') {
+    if (!userId) {
+      this.logger.warn(
+        `[WsAuthGuard] userId missing on authenticated socket — socketId=${client.id}`,
+      );
       throw new WsException('Unauthorized');
     }
 
-    let payload: { sub?: unknown };
-    try {
-      payload = this.jwtService.verify(token);
-    } catch {
-      throw new WsException('Unauthorized');
-    }
-
-    if (!payload.sub || typeof payload.sub !== 'string') {
-      throw new WsException('Unauthorized');
-    }
-
-    const isValid = await this.sessionService.isValid(token);
-    if (!isValid) {
-      throw new WsException('Unauthorized');
-    }
-
-    client.data.userId = payload.sub;
     return true;
   }
 }

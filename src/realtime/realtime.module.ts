@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from '../users/auth.module';
 import { StateStore } from './state-store';
 import { WsAuthGuard } from './guards/ws-auth.guard';
+import { WsAuthMiddleware } from './middleware/ws-auth.middleware';
 import { LiveGateway } from './gateways/live.gateway';
 import { PresenceService } from './services/presence.service';
 import { ActivityEngine } from './services/activity-engine.service';
@@ -23,6 +24,7 @@ import { SessionStreamSample } from './entities/session-stream-sample.entity';
   ],
   providers: [
     StateStore,
+    WsAuthMiddleware,
     WsAuthGuard,
     WsRateLimitGuard,
     RateLimiterService,
