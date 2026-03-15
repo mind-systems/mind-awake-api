@@ -1,16 +1,13 @@
 ---
 name: aif-plan
-description: Plan implementation for a feature or task. Two modes — fast (no branch) or full (git branch + plan). Use when user says "plan", "new feature", "start feature", "create tasks".
-argument-hint: "[fast | full] [--parallel | --list | --cleanup <branch>] <description>"
-allowed-tools: Read Write Glob Grep Bash(git *) Bash(cd *) Bash(cp *) Bash(mkdir *) Bash(basename *) TaskCreate TaskUpdate TaskList AskUserQuestion Questions Task
+description: Plan implementation for a feature or task. Always creates a named plan file with full exploration. Use when user says "plan", "new feature", "start feature", "create tasks".
+argument-hint: "<description>"
 disable-model-invocation: false
 ---
 
 # Plan - Implementation Planning
 
-Create an implementation plan for a feature or task. Two modes:
-- **Fast** — quick plan, no git branch, saves to `.ai-factory/plans/<descriptive-name>.md`
-- **Full** — creates git branch, asks preferences, saves to `.ai-factory/plans/<branch>.md`
+Creates a named plan file with full codebase exploration and preference questions.
 
 ## Workflow
 
@@ -34,93 +31,22 @@ Use this context when:
 - Planning file structure (follow project conventions)
 - **Follow architecture guidelines from `.ai-factory/ARCHITECTURE.md` when planning file structure and task organization**
 
-### Step 0.1: Ensure Git Repository
-
-```bash
-git rev-parse --is-inside-work-tree 2>/dev/null || git init
-```
-
-### Step 0.2: Parse Arguments & Select Mode
-
-Extract flags and mode from `$ARGUMENTS`:
-
-```
---parallel  → Enable parallel worktree mode (full mode only)
---list      → Show all active worktrees, then STOP
---cleanup <branch> → Remove worktree and optionally delete branch, then STOP
-fast        → Fast mode (first word)
-full        → Full mode (first word)
-```
-
-**Parsing rules:**
-- Strip `--parallel`, `--list`, `--cleanup <branch>`, `fast`, `full` from `$ARGUMENTS`
-- Remaining text becomes the description
-- `--list` and `--cleanup` execute immediately and **STOP** (do NOT continue to Step 1+)
-
-**If `--list` is present**, jump to [--list Subcommand](#--list-subcommand).
-**If `--cleanup` is present**, jump to [--cleanup Subcommand](#--cleanup-subcommand).
-
-**Mode selection:**
-- `fast` keyword → fast mode
-- `full` keyword → full mode
-- Neither → ask interactively:
-
-```
-AskUserQuestion: Which planning mode?
-
-Options:
-1. Full (Recommended) — creates git branch, asks preferences, full plan
-2. Fast — quick plan, no branch, saves to `.ai-factory/plans/<descriptive-name>.md`
-```
-
-For concrete parsing examples and expected behavior per command shape, read `references/EXAMPLES.md` (Argument Parsing).
-
 ---
 
-## Full Mode
+### Step 1: Quick Reconnaissance
 
-### Step 1: Parse Description & Quick Reconnaissance
-
-From the description, extract:
-- Core functionality being added
-- Key domain terms
-- Type (feature, enhancement, fix, refactor)
-
-**Use `Task` tool with `subagent_type: Explore` to quickly understand the relevant parts of the codebase.** This runs as a subagent and keeps the main context clean.
-
-Based on the parsed description, launch 1-2 Explore agents in parallel:
+Launch 1-2 Explore agents to understand the relevant codebase area:
 
 ```
 Task(subagent_type: Explore, model: sonnet, prompt:
-  "In [project root], find files and modules related to [feature domain keywords].
+  "In [project root], find files and modules related to [feature domain].
    Report: key directories, relevant files, existing patterns, integration points.
    Thoroughness: quick. Be concise — return a structured summary, not file contents.")
 ```
 
-**Rules:**
-- 1-2 agents max, "quick" thoroughness — this is reconnaissance, not deep analysis
-- Deep exploration happens later in Step 3
-- If `.ai-factory/DESCRIPTION.md` already provides sufficient context, this step can be skipped
+Skip if `.ai-factory/DESCRIPTION.md` already provides sufficient context.
 
-### Step 1.2: Generate Branch Name
-
-```
-Format: <type>/<short-description>
-
-Examples:
-- feature/user-authentication
-- fix/cart-total-calculation
-- refactor/api-error-handling
-- chore/upgrade-dependencies
-```
-
-**Rules:**
-- Lowercase with hyphens
-- Max 50 characters
-- No special characters except hyphens
-- Descriptive but concise
-
-### Step 1.3: Ask About Preferences
+### Step 1.2: Ask Preferences
 
 **IMPORTANT: Always ask the user before proceeding:**
 
@@ -132,9 +58,9 @@ AskUserQuestion: Before we start, a few questions:
    - [ ] No, skip tests
 
 2. Logging level for implementation:
-   - [ ] Verbose (recommended) - detailed DEBUG logs for development
-   - [ ] Standard - INFO level, key events only
-   - [ ] Minimal - only WARN/ERROR
+   - [ ] Minimal (default) — errors and key state changes only
+   - [ ] Standard — INFO level, key events
+   - [ ] Verbose — detailed DEBUG logs
 
 3. Update documentation after implementation?
    - [ ] Yes, update docs (/aif-docs)
@@ -143,112 +69,11 @@ AskUserQuestion: Before we start, a few questions:
 4. Any specific requirements or constraints?
 ```
 
-**Default to verbose logging.** AI-generated code benefits greatly from extensive logging because:
-- Subtle bugs are common and hard to trace without logs
-- Users can always remove logs later
-- Missing logs during development wastes debugging time
+**Default to minimal logging** — log errors and key state changes only. Avoid noise logs.
 
 Store all preferences — they will be used in the plan file and passed to `/aif-implement`.
 
-### Step 1.4: Create Branch or Worktree
-
-**If `--parallel` flag is set → create worktree:**
-
-#### Worktree Creation
-
-```bash
-DIRNAME=$(basename "$(pwd)")
-git branch <branch-name> main
-git worktree add ../${DIRNAME}-<branch-name-with-hyphens> <branch-name>
-```
-
-Convert branch name for directory: replace `/` with `-`.
-
-**Example:**
-```
-Project dir: my-project
-Branch: feature/user-auth
-Worktree: ../my-project-feature-user-auth
-```
-
-Copy context files so the worktree has full AI context:
-
-```bash
-WORKTREE="../${DIRNAME}-<branch-name-with-hyphens>"
-
-# Project context
-cp .ai-factory/DESCRIPTION.md "${WORKTREE}/.ai-factory/DESCRIPTION.md" 2>/dev/null
-cp .ai-factory/ARCHITECTURE.md "${WORKTREE}/.ai-factory/ARCHITECTURE.md" 2>/dev/null
-
-# Past lessons / patches
-cp -r .ai-factory/patches/ "${WORKTREE}/.ai-factory/patches/" 2>/dev/null
-
-# Agent skills + settings
-cp -r .claude/ "${WORKTREE}/.claude/" 2>/dev/null
-
-# CLAUDE.md only if untracked
-if [ -f CLAUDE.md ] && ! git ls-files --error-unmatch CLAUDE.md &>/dev/null; then
-  cp CLAUDE.md "${WORKTREE}/CLAUDE.md"
-fi
-```
-
-Create changes directory and switch:
-
-```bash
-mkdir -p "${WORKTREE}/.ai-factory/plans"
-cd "${WORKTREE}"
-```
-
-Display confirmation:
-
-```
-Parallel worktree created!
-
-  Branch:    <branch-name>
-  Directory: <worktree-path>
-
-To manage worktrees later:
-  /aif-plan --list
-  /aif-plan --cleanup <branch-name>
-```
-
-Continue to Step 2.
-
-**If no `--parallel` → create branch normally:**
-
-```bash
-git checkout main
-git pull origin main
-git checkout -b <branch-name>
-```
-
-If branch already exists, ask user:
-- Switch to existing branch?
-- Create with different name?
-
 ---
-
-## Fast Mode
-
-### Step 1: Ask About Preferences
-
-Ask a shorter set of questions:
-
-```
-AskUserQuestion: Before we start:
-
-1. Should I include tests in the plan?
-   - [ ] Yes, include tests
-   - [ ] No, skip tests
-
-2. Any specific requirements or constraints?
-```
-
-**Plan file:** `.ai-factory/plans/<descriptive-name>.md` — derive a short name from the task description (e.g., `auth-result-navigation.md`, `fix-back-stack-loss.md`). No branch, no `PLAN.md`.
-
----
-
-## Shared Steps (both modes)
 
 ### Step 2: Analyze Requirements
 
@@ -291,7 +116,7 @@ Task(subagent_type: Explore, model: sonnet, prompt:
    and potential side effects of changes. Thoroughness: medium.")
 ```
 
-**If full mode passed codebase reconnaissance** from Step 1 — use it as a starting point. Focus Explore agents on areas that need deeper understanding.
+Use recon from Step 1 as a starting point. Focus Explore agents on areas that need deeper understanding.
 
 **After agents return, synthesize:**
 - Which files need to be created/modified
@@ -317,13 +142,15 @@ Use `TaskUpdate` to set `blockedBy` relationships:
 
 ### Step 5: Save Plan to File
 
-**Determine plan file path:**
-- **Fast mode** → `.ai-factory/plans/<descriptive-name>.md` (derive from description, e.g., `auth-result-navigation.md`)
-- **Full mode** → `.ai-factory/plans/<branch-name>.md` (replace `/` with `-`)
+**Plan file path:** `.ai-factory/plans/<NN>-<slug>.md` where:
+- `<slug>` is derived from the description (lowercase, hyphens)
+- `<NN>` is a zero-padded two-digit sequence number (`01`, `02`, `03` …)
+
+To determine `<NN>`, find the highest existing `NN` prefix among files matching `[0-9][0-9]-*.md` in `.ai-factory/plans/` and add 1. If no numbered files exist yet, start at `01`.
 
 **Before saving, ensure directory exists:**
 ```bash
-mkdir -p .ai-factory/plans  # only when saving to branch-named plan files
+mkdir -p .ai-factory/plans
 ```
 
 **Plan file must include:**
@@ -343,36 +170,11 @@ Use the canonical template in `references/TASK-FORMAT.md` (Plan File Template).
 
 ### Step 6: Next Steps
 
-**Full mode + parallel (`--parallel`):** Automatically invoke `/aif-implement` — the whole point of parallel is autonomous end-to-end execution in an isolated worktree.
-
-```
-/aif-implement
-
-CONTEXT FROM /aif-plan:
-- Plan file: .ai-factory/plans/<branch-name>.md
-- Testing: yes/no
-- Logging: verbose/standard/minimal
-- Docs: yes/no
-```
-
-**Full mode normal:** STOP after planning. The user reviews the plan and decides when to implement.
+STOP after planning. The user reviews the plan and decides when to implement.
 
 ```
 Plan created with [N] tasks.
-Plan file: .ai-factory/plans/<branch-name>.md
-
-To start implementation, run:
-/aif-implement
-
-To view tasks:
-/tasks (or use TaskList)
-```
-
-**Fast mode:** STOP after planning.
-
-```
-Plan created with [N] tasks.
-Plan file: .ai-factory/plans/<descriptive-name>.md
+Plan file: .ai-factory/plans/<NN>-<slug>.md
 
 To start implementation, run:
 /aif-implement
@@ -393,52 +195,6 @@ Options:
 2. /compact — Compress history
 3. Continue as is
 ```
-
----
-
-## --list Subcommand
-
-When `--list` is passed, show all active worktrees and their feature status. Then **STOP**.
-
-```bash
-git worktree list
-```
-
-For each worktree path:
-1. Check if `<worktree>/.ai-factory/plans/` contains any plan files
-2. Show name and whether it looks complete (has tasks) or is still in progress
-
-**Output format:**
-```
-Active worktrees:
-
-  /path/to/my-project          (main)        <- you are here
-  /path/to/my-project-feature-user-auth  (feature/user-auth)  -> Plan: feature-user-auth.md
-  /path/to/my-project-fix-cart-bug       (fix/cart-bug)        -> No plan yet
-```
-
-## --cleanup Subcommand
-
-When `--cleanup <branch>` is passed, remove the worktree and optionally delete the branch. Then **STOP**.
-
-```bash
-DIRNAME=$(basename "$(pwd)")
-BRANCH_DIR=$(echo "<branch>" | tr '/' '-')
-WORKTREE="../${DIRNAME}-${BRANCH_DIR}"
-
-git worktree remove "${WORKTREE}"
-git branch -d <branch>  # -d (not -D) will fail if unmerged, which is safe
-```
-
-If `git branch -d` fails because the branch is unmerged:
-
-```
-Branch <branch> has unmerged changes.
-To force-delete: git branch -D <branch>
-To merge first: git checkout main && git merge <branch>
-```
-
-If the worktree path doesn't exist, check `git worktree list` and suggest the correct path.
 
 ---
 
@@ -465,16 +221,13 @@ Use canonical examples in `references/TASK-FORMAT.md`:
 5. **Dependencies matter** — Order tasks so they can be done sequentially
 6. **Include file paths** — Help implementer know where to work
 7. **Commit checkpoints for large plans** — 5+ tasks need commit plan with checkpoints every 3-5 tasks
-8. **Plan file location** — Both modes save to `.ai-factory/plans/`. Fast mode: `<descriptive-name>.md`. Full mode: `<branch-name>.md`.
+8. **Plan file location** — always `.ai-factory/plans/<NN>-<slug>.md` with zero-padded sequence number
 
 ## Plan File Handling
 
-**Fast mode (`.ai-factory/plans/<descriptive-name>.md`)**
-- Named by task content, not by a fixed filename
+Plans live at `.ai-factory/plans/<NN>-<slug>.md`:
+- `<NN>` determined by scanning existing `[0-9][0-9]-*.md` files and incrementing the highest
+- `<slug>` derived from the task description (lowercase, hyphens)
 - `/aif-implement` may offer deletion after completion
 
-**Full mode (`.ai-factory/plans/<branch>.md`)**
-- Branch-scoped, long-lived plan for feature delivery
-- Used to resume work from current branch context
-
-For concrete end-to-end flows (fast/full/full+parallel/interactive), read `references/EXAMPLES.md` (Flow Scenarios).
+For concrete flow examples, read `references/EXAMPLES.md`.
